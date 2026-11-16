@@ -61,6 +61,17 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   sys.modules); all smoke suites pass, incl. new get_dynamic_colors assertions.
   Mac action: pull + recreate the env; with no pyside6 installed and the pin set,
   libQt6Core cannot enter the process. Confirm warnings are gone there.
+- 2026-11-16 — Issue 1 root-caused for real (Mac warnings persisted after the first fix):
+  LD_DEBUG=libs showed `import gui.window` loads libQt6Core via
+  vtkmodules/vtkRenderingQt -> libvtkRenderingQt -> libQt6Core (conda-forge vtk links
+  Qt6 since 9.3; vtk-base 9.2.6 is the last Qt-free conda build but mayavi needs
+  vtk>=9.4). Fix: vtk + mayavi now come from PyPI (Qt-free wheels; macosx arm64 wheel
+  verified to exist), conda keeps only python/pyqt/numpy/scipy/sklearn/networkx/laspy/
+  lazrs-python. After rebuilding the env: `conda list` has no qt6-main/pyside6/vtk-base;
+  readelf shows no libQt* NEEDED in pip vtk .so files; LD_DEBUG on both
+  `import gui.window` and a full `python main.py` launch shows 0 libQt6Core loads and
+  exactly 1 libQt5Core load — the objc duplicate-class warnings are now impossible.
+  All smoke suites + qt-backend check pass on the rebuilt env.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

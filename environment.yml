@@ -6,19 +6,22 @@ channels:
 dependencies:
   - python=3.11
   - pyqt=5
-  - mayavi
   - numpy
   - scipy
   - scikit-learn
   - networkx
-  # No matplotlib on purpose: its conda-forge build depends on pyside6 ->
-  # qt6-main, which would put Qt6 libs in the env (the app only used it for
-  # a colormap; gui/pointcloud_view.py now has a built-in plasma gradient).
-  # gui/__init__.py still pins QT_API=pyqt5 as defense in depth.
   - laspy
   - lazrs-python
   - pip
   - pip:
+      # VTK and mayavi come from PyPI on purpose: the conda-forge vtk build
+      # links Qt6, so importing vtk loads libQt6Core next to libQt5Core and
+      # macOS prints objc duplicate-class warnings at launch. The PyPI vtk
+      # wheels are built without Qt (verified: no libQt* NEEDED entries, and
+      # macosx arm64 + manylinux wheels exist). mayavi pulls pyface, traitsui,
+      # traits, apptools and envisage from PyPI as well.
+      - vtk==9.7.2
+      - mayavi==4.9.0
       # Optional: CUDA farthest-point-sampling acceleration. Requires a CUDA
       # toolkit and a CUDA-capable GPU. Without it, NeedLR falls back to the
       # pure-numpy FPS implementations in algorithms/downsampling.py.
