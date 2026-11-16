@@ -4,8 +4,9 @@ import numpy as np
 import os
 import config.settings as settings
 from algorithms import downsampling, superpoint_graph
-from PyQt5.QtWidgets import QDesktopWidget, QApplication
-import win32gui
+from gui import window_utils
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QGuiApplication
 import time
 import algorithms.community_detection as cd
 import json
@@ -163,7 +164,7 @@ class PointcloudView:
             mlab.clf(self.fig_zoom)
             zoom_camera = None
 
-        screen_size = QDesktopWidget().screenGeometry(-1)
+        screen_size = QGuiApplication.primaryScreen().availableGeometry()
         width, height = screen_size.width() // 4, screen_size.height() // 2
         x = screen_size.width() - width
 
@@ -444,38 +445,11 @@ class PointcloudView:
             self.fig_full.scene.background = bg_color
             self.fig_zoom.scene.background = bg_color
 
-    def update_window_titles(self):
-        if self.fig_full and self.fig_full.scene:
-            self.set_vtk_window_title(self.fig_full, "Full Model")
-        if self.fig_zoom and self.fig_zoom.scene:
-            self.set_vtk_window_title(self.fig_zoom, "Cluster Zoom")
-
-    def set_vtk_window_title(self, figure, title):
-        render_window = figure.scene.render_window
-        window = render_window.GetGenericWindowId()
-        if window:  # Check if the window is valid
-            try:
-                window.setWindowTitle(title)
-            except AttributeError:
-                # Handle cases where setting the title is not possible
-                pass
-
     def move_window_to_position(self, title, x, y, width, height):
-        def enum_window_callback(hwnd, titles):
-            if (
-                win32gui.IsWindowVisible(hwnd)
-                and win32gui.GetWindowText(hwnd) in titles
-            ):
-                titles[win32gui.GetWindowText(hwnd)] = hwnd
-
-        # Dictionary to hold window titles and handles
-        titles = {title: None}
-        win32gui.EnumWindows(enum_window_callback, titles)
-
-        hwnd = titles[title]
-        if hwnd:
-            # Move and resize the window
-            win32gui.MoveWindow(hwnd, x, y, width, height, True)
+        # Window titles are set when the figures are created; map them back
+        # to the figure objects and delegate to the cross-platform helper.
+        figures = {"Full Model": self.fig_full, "Cluster Zoom": self.fig_zoom}
+        window_utils.move_vtk_window(figures.get(title), x, y, width, height)
 
     # New method to trigger the update of the cluster label in the ControlPanel
     def update_cluster_label_callback(self):
