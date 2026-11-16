@@ -385,9 +385,9 @@ class ControlPanel(QWidget):
             self.display_current_file()
 
     def load_pointcloud_files(self, folder_path):
-        # Load all point cloud files (.las and .txt) from the folder
+        # Load all point cloud files (.las, .laz and .txt) from the folder
         self.pointcloud_files = [
-            f for f in os.listdir(folder_path) if f.endswith((".las", ".txt"))
+            f for f in os.listdir(folder_path) if f.endswith((".las", ".laz", ".txt"))
         ]
         self.current_file_index = 0
 

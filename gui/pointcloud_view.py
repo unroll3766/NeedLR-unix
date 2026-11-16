@@ -338,7 +338,7 @@ class PointcloudView:
                 or downsampling_method != self.old_downsampling_method
                 or self.current_file != self.old_file
             ):
-                if self.current_file.endswith(".las"):
+                if self.current_file.endswith((".las", ".laz")):
                     las = laspy.read(self.current_file)
                     self.points = np.vstack((las.x, las.y, las.z)).transpose()
                 elif self.current_file.endswith(".txt"):

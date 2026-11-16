@@ -61,7 +61,7 @@ Platform notes:
 
 ![Screenshot of Application](ReadME_Assets/program_screenshot.png)
 
-- Select a point cloud file or folder to begin annotation.
+- Select a folder of point cloud files (`.las`, `.laz`, or `.txt`) to begin annotation.
 - Select destination folder to store annotations in JSON format. 
 - Choose downsampling and community detection algorithms as required.
 - Use the GUI to navigate through point clusters and label them.

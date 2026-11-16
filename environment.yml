@@ -13,6 +13,7 @@ dependencies:
   - networkx
   - matplotlib
   - laspy
+  - lazrs-python
   - pip
   - pip:
       # Optional: CUDA farthest-point-sampling acceleration. Requires a CUDA
