@@ -11,6 +11,8 @@ dependencies:
   - scipy
   - scikit-learn
   - networkx
+  # Note: current matplotlib builds also pull in pyside6/qt6-main. That is
+  # inert at runtime: gui/__init__.py pins QT_API=pyqt5 so only Qt5 loads.
   - matplotlib
   - laspy
   - lazrs-python

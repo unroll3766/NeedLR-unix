@@ -39,7 +39,16 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   (smoke_port.py, check_fps_fallbacks.py, smoke_gui.py) and re-run from the repo with
   the NeedLR env; all exit 0. `py_compile` clean on main.py, gui/, config/, algorithms/,
   tests/.
+- 2026-11-16 — Issue 1 fix (Qt5/Qt6 objc duplicate-class warnings): root cause is
+  matplotlib's conda-forge build hard-depending on pyside6 -> qt6-main, so Qt6 libs sit
+  in the env; on the reporter's Mac pyface then bound pyside6 and libQt6Core loaded
+  next to libQt5Core. Fix: new gui/__init__.py pins QT_API=pyqt5 (setdefault) before any
+  mayavi/pyface import, since all mayavi imports go through gui submodules.
+  tests/check_qt_backend.py verifies that after `import gui.window` only PyQt5 modules
+  are in sys.modules (libQt6Core never enters the process), exit 0; all smoke suites
+  still pass. Caveat: the Qt6 load could not be reproduced on this Linux container
+  (pyside6 import fails here even when forced), so the disappearance of the macOS objc
+  warnings still needs one confirmation on a Mac.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
-  remains Windows-only). Worth a manual check on a Mac. Issue 1 (Qt5/Qt6 objc duplicate
-  class warnings) likewise needs a Mac to confirm.
+  remains Windows-only). Worth a manual check on a Mac.

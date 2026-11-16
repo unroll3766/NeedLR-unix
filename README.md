@@ -53,7 +53,7 @@ python main.py
 
 Platform notes:
 
-- **macOS**: run from Terminal; no extra setup needed.
+- **macOS**: run from Terminal; no extra setup needed. (The env contains both Qt5 and Qt6 libraries via matplotlib's pyside6 dependency, but `gui/__init__.py` pins `QT_API=pyqt5` so only Qt5 is ever loaded — do not override `QT_API`.)
 - **Linux**: a display (X11 or Wayland) is required for the GUI and the Mayavi/VTK windows. On a headless machine, use `xvfb-run python main.py`.
 - The 3D windows are positioned with VTK-native calls on macOS/Linux; on Windows the app additionally uses pywin32 if installed.
 
