@@ -410,6 +410,7 @@ class ControlPanel(QWidget):
                 clustering_algorithm=self.community_detection_selector.currentData(),
             )
         else:
+            self.file_name_display.setText("No point cloud files found")
             print("No files to display or folder path is not set.")
 
     def show_loading_indicator(self):
