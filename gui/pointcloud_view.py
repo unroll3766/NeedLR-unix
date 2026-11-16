@@ -4,7 +4,11 @@ import numpy as np
 import os
 import config.settings as settings
 from algorithms import downsampling, superpoint_graph
-from algorithms.label_export import load_annotation_file, save_annotation_file
+from algorithms.label_export import (
+    LabelExportError,
+    load_annotation_file,
+    save_annotation_file,
+)
 from gui import window_utils
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QGuiApplication
@@ -104,7 +108,15 @@ class PointcloudView:
         else:
             print("Found save data, loading from file")
             # Handles both the old list format and {"label_map", "clusters"}
-            save_data, self.label_map = load_annotation_file(label_file_path)
+            try:
+                save_data, self.label_map = load_annotation_file(label_file_path)
+            except LabelExportError:
+                # e.g. >127 distinct labels in an old file: keep the clusters,
+                # the map is re-derived (and validated) at export time
+                with open(label_file_path, "r") as file:
+                    raw = json.load(file)
+                save_data = raw.get("clusters", []) if isinstance(raw, dict) else raw
+                self.label_map = {}
 
             # Flatten all points into a single array
             all_points = np.concatenate(
@@ -145,14 +157,14 @@ class PointcloudView:
             for label in self.cluster_labels.values():
                 key = str(label)
                 if key != "-1" and key not in self.label_map:
-                    self.label_map[key] = len(self.label_map) + 1
+                    self.label_map[key] = max(self.label_map.values(), default=0) + 1
             save_annotation_file(label_file_path, label_data, self.label_map)
 
     def label_current_cluster(self, label):
         if self.current_cluster_index < len(self.clusters):
             self.cluster_labels[self.current_cluster_index] = label
             if str(label) != "-1" and str(label) not in self.label_map:
-                self.label_map[str(label)] = len(self.label_map) + 1
+                self.label_map[str(label)] = max(self.label_map.values(), default=0) + 1
             # Optionally update visualization to reflect the new label
 
     def next_cluster(self):

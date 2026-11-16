@@ -440,6 +440,7 @@ class ControlPanel(QWidget):
     def display_current_file(self):
         print("Running function: display_current_file")
         self.pointcloud_view.cluster_labels = {}
+        self.pointcloud_view.label_map = {}  # label ids are per-file
         if self.pointcloud_files and self.pointcloud_view.current_folder_path:
             filename = self.pointcloud_files[self.current_file_index]
             self.file_name_display.setText(filename)

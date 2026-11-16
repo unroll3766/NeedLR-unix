@@ -80,6 +80,14 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   classes raises; .txt gets a 4th column; label_map persisted in the JSON (object schema,
   old list-format files still load with a derived sorted map; stored maps are honored).
   UI: "Export Labels to Original Cloud" button + header-name field in the Output groupbox.
+- 2026-11-16 — Review pass on issue 6; three edge cases found and fixed: (a) label-id
+  assignment used len(map)+1 which could collide with gappy stored maps — now
+  max(values)+1 (tested: {"x":1,"y":5} + "z" -> 6); (b) label_map was not reset when
+  switching files — now reset in display_current_file; (c) a cluster with an empty
+  points list crashed cKDTree with a raw IndexError — points are reshaped to (-1, 3)
+  and an empty annotation raises LabelExportError. The view's JSON load also tolerates
+  >127-label old files (map re-derived at export, where the proper error is raised).
+  All 5 test suites exit 0 after the fixes; test_label_export.py now has 9 checks.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

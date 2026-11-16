@@ -157,5 +157,19 @@ except LabelExportError as e:
     assert "annotation" in str(e).lower()
 print("8 OK: missing JSON raises LabelExportError")
 
+# --- 9. cluster with empty points list -> clear error, not a raw crash ---
+pts9 = rng.random((50, 3)) * 10
+orig9 = os.path.join(WORK, "empty.las")
+write_las(orig9, pts9)
+empty_json = os.path.join(WORK, "empty.las.json")
+with open(empty_json, "w") as f:
+    json.dump([{"cluster": 0, "label": "tree", "points": []}], f)
+try:
+    export_labels_to_original(orig9, empty_json, WORK)
+    raise AssertionError("expected LabelExportError")
+except LabelExportError as e:
+    assert "no annotated points" in str(e), str(e)
+print("9 OK: empty annotation points raise LabelExportError")
+
 shutil.rmtree(WORK)
 print("LABEL EXPORT TESTS: ALL PASSED")

@@ -134,4 +134,10 @@ assert map_j == {"tree": 1}, map_j
 assert clusters_j[0]["label"] == "tree"
 print(f"issue6 OK: label_map persisted and reloaded: {map_j}, cluster0 label={clusters_j[0]['label']!r}")
 
+# gap-safe id assignment: next id must not collide with existing ids
+view2.label_map = {"x": 1, "y": 5}
+view2.label_current_cluster("z")
+assert view2.label_map["z"] == 6, view2.label_map
+print(f"issue6b OK: gap-safe label id assignment: {view2.label_map}")
+
 print("ISSUES 2-5 VERIFICATION: ALL PASSED")

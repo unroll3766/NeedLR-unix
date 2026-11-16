@@ -175,13 +175,15 @@ def export_labels_to_original(
             label_id = label_map[key]
         else:
             raise LabelExportError(f'Label "{label}" has no id in the label map.')
-        pts = np.asarray(cluster["points"], dtype=float)
+        pts = np.asarray(cluster["points"], dtype=float).reshape(-1, 3)
         annotated_points.append(pts)
         annotated_ids.append(np.full(len(pts), label_id, dtype=np.int8))
     if not annotated_points:
         raise LabelExportError("The annotation file contains no clusters.")
     annotated_points = np.vstack(annotated_points)
     annotated_ids = np.concatenate(annotated_ids)
+    if annotated_points.shape[0] == 0:
+        raise LabelExportError("The annotation file contains no annotated points.")
 
     ext = os.path.splitext(src_path)[1].lower()
     stem = os.path.splitext(os.path.basename(src_path))[0]
