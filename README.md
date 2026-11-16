@@ -17,27 +17,31 @@ Welcome to NeedLR, a specialized tool for Needle-like precision in Labeling and 
 
 ## Getting Started
 
-[Download the .exe](https://sourceforge.net/projects/needlr/) or compile and run the binaries on your own using the information below.
+NeedLR runs on **macOS and Linux** (and Windows). Install from source with conda using the information below. A legacy Windows `.exe` is also available [on SourceForge](https://sourceforge.net/projects/needlr/), but it is built from the old Windows-only environment (`environment-windows-legacy.yml`).
 
 ### Dependencies
 
-- Python 3.8.5
+- Python 3.11
 - PyQt5
-- NumPy
-- Open3D
-- Mayavi
-- fpsample (for FPS downsampling)
-- Other dependencies listed in `environment.yml`.
+- Mayavi (with VTK)
+- NumPy, SciPy, scikit-learn, NetworkX, Matplotlib, laspy
+- All conda dependencies are listed in `environment.yml` (conda-forge channel).
+- Optional: `fpsample` (CUDA farthest-point sampling) — only on machines with a CUDA toolkit and GPU. Without it, NeedLR automatically uses the built-in pure-numpy FPS fallbacks.
 
 ### Installing
 
-Clone the repository and install the required packages:
+Clone the repository and create the conda environment (works on macOS — Intel and Apple Silicon — and Linux):
 
 ```bash
-git clone https://github.com/your-username/NeedLR.git
+git clone https://github.com/GunnerStone/NeedLR.git
 cd NeedLR
-conda env create --name NeedLR -f environment.yml
+conda env create -f environment.yml
+conda activate NeedLR
+# Optional, only on CUDA-capable machines:
+# pip install fpsample==0.3.1
 ```
+
+The original Windows-only Anaconda export is preserved in `environment-windows-legacy.yml`.
 
 ### Executing Program
 
@@ -46,6 +50,12 @@ To run NeedLR, execute the following command in the project directory:
 ```bash
 python main.py
 ```
+
+Platform notes:
+
+- **macOS**: run from Terminal; no extra setup needed.
+- **Linux**: a display (X11 or Wayland) is required for the GUI and the Mayavi/VTK windows. On a headless machine, use `xvfb-run python main.py`.
+- The 3D windows are positioned with VTK-native calls on macOS/Linux; on Windows the app additionally uses pywin32 if installed.
 
 ### Usage
 

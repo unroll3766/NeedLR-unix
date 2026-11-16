@@ -1,0 +1,24 @@
+# CHECKLOG — NeedLR cross-platform port verification
+
+Environment used for all checks: conda env `NeedLR` (Python 3.11.18, PyQt5 5.15.15,
+mayavi 4.9.0, vtk 9.7.2, numpy 2.4.6, networkx 3.6.1, laspy 2.7.0), created from the
+new `environment.yml` on linux-64. No display server on this machine; GUI checks use
+`QT_QPA_PLATFORM=offscreen`.
+
+- 2026-11-16 — `conda env create -f environment.yml` solves and installs cleanly from
+  conda-forge on linux-64 (dry-run + real create, exit 0).
+- 2026-11-16 — `python -m py_compile` passes on main.py, gui/*.py, config/*.py,
+  algorithms/*.py.
+- 2026-11-16 — Import + offscreen GUI smoke test (`QT_QPA_PLATFORM=offscreen`, launched
+  from /tmp): `config.settings.settings_file` resolves to the repo-root
+  `app_settings.json` regardless of CWD; `MainWindow` constructs and shows; all five
+  downsampling methods return the requested point count on a 5000-point cloud (numpy
+  FPS fallbacks active, one-time warning on stderr); KNN graph (512 nodes, 40 clusters
+  via label propagation) and MST graph (512 nodes, 511 edges) build correctly.
+  Script: /tmp/needlr_smoke.py, exit 0.
+- 2026-11-16 — `python main.py` under `QT_QPA_PLATFORM=offscreen` starts and stays in the
+  Qt event loop until killed by timeout (exit 124), no high-DPI warning after deferring
+  the gui import until after `AA_EnableHighDpiScaling` is set.
+- Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
+  macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
+  remains Windows-only). Worth a manual check on a Mac.
