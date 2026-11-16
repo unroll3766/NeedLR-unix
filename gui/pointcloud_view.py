@@ -4,6 +4,7 @@ import numpy as np
 import os
 import config.settings as settings
 from algorithms import downsampling, superpoint_graph
+from algorithms.label_export import load_annotation_file, save_annotation_file
 from gui import window_utils
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QGuiApplication
@@ -41,6 +42,7 @@ class PointcloudView:
         )
         self.cluster_label_update_func = None
         self.cluster_labels = {}
+        self.label_map = {}  # str(label) -> int id, persisted in the JSON
         self.fig_full = None
         self.fig_zoom = None
         self.current_folder_path = None
@@ -98,12 +100,11 @@ class PointcloudView:
                     {"cluster": int(idx), "label": -1, "points": cluster_points_list}
                 )
 
-            with open(label_file_path, "w") as file:
-                json.dump(label_data, file, indent=4)
+            save_annotation_file(label_file_path, label_data, self.label_map)
         else:
             print("Found save data, loading from file")
-            with open(label_file_path, "r") as file:
-                save_data = json.load(file)
+            # Handles both the old list format and {"label_map", "clusters"}
+            save_data, self.label_map = load_annotation_file(label_file_path)
 
             # Flatten all points into a single array
             all_points = np.concatenate(
@@ -134,17 +135,24 @@ class PointcloudView:
         if os.path.exists(label_file_path):
             # Update the label file with current labels
             with open(label_file_path, "r") as file:
-                label_data = json.load(file)
+                data = json.load(file)
+            label_data = data.get("clusters", []) if isinstance(data, dict) else data
             for cluster in label_data:
                 cluster_idx = cluster["cluster"]
                 if cluster_idx in self.cluster_labels:
                     cluster["label"] = self.cluster_labels[cluster_idx]
-            with open(label_file_path, "w") as file:
-                json.dump(label_data, file, indent=4)
+            # Ensure every assigned label has an id in the label map
+            for label in self.cluster_labels.values():
+                key = str(label)
+                if key != "-1" and key not in self.label_map:
+                    self.label_map[key] = len(self.label_map) + 1
+            save_annotation_file(label_file_path, label_data, self.label_map)
 
     def label_current_cluster(self, label):
         if self.current_cluster_index < len(self.clusters):
             self.cluster_labels[self.current_cluster_index] = label
+            if str(label) != "-1" and str(label) not in self.label_map:
+                self.label_map[str(label)] = len(self.label_map) + 1
             # Optionally update visualization to reflect the new label
 
     def next_cluster(self):
