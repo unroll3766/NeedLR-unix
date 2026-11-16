@@ -1,4 +1,11 @@
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QPushButton, QStyle
+from PyQt5.QtWidgets import (
+    QMainWindow,
+    QVBoxLayout,
+    QWidget,
+    QPushButton,
+    QStyle,
+    QScrollArea,
+)
 from PyQt5 import QtGui
 from gui.pointcloud_view import PointcloudView
 from gui.controls import ControlPanel
@@ -29,9 +36,23 @@ class MainWindow(QMainWindow):
         )  # Set path to your icon
 
         # self.layout.addWidget(self.pointcloud_view)
-        self.layout.addWidget(self.controls)
+        # Scroll area keeps the whole panel reachable on short screens
+        # (taskbar/dock), where the full layout would overflow the window.
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidget(self.controls)
+        self.layout.addWidget(self.scroll_area)
 
         self.layout.addWidget(self.github_button)
+
+        # Fit the window to the available screen geometry (excludes menu
+        # bar / taskbar) instead of letting the layout dictate the height.
+        screen = QtGui.QGuiApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            self.resize(
+                min(480, available.width()), min(available.height() - 40, 900)
+            )
 
     def closeEvent(self, event):
         # Save settings on close
