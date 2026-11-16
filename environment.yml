@@ -11,9 +11,10 @@ dependencies:
   - scipy
   - scikit-learn
   - networkx
-  # Note: current matplotlib builds also pull in pyside6/qt6-main. That is
-  # inert at runtime: gui/__init__.py pins QT_API=pyqt5 so only Qt5 loads.
-  - matplotlib
+  # No matplotlib on purpose: its conda-forge build depends on pyside6 ->
+  # qt6-main, which would put Qt6 libs in the env (the app only used it for
+  # a colormap; gui/pointcloud_view.py now has a built-in plasma gradient).
+  # gui/__init__.py still pins QT_API=pyqt5 as defense in depth.
   - laspy
   - lazrs-python
   - pip

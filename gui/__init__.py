@@ -1,12 +1,12 @@
 """GUI package init.
 
-Pins the Qt backend before mayavi/pyface are imported. The conda env
-contains both Qt5 (pyqt=5, used by the app) and Qt6 (pulled in by
-matplotlib's pyside6 dependency); if pyface/traitsui auto-select pyside6,
-both libQt5Core and libQt6Core end up in the process, which on macOS
-produces objc duplicate-class warnings and can cause crashes. Forcing
-QT_API=pyqt5 makes pyface bind to PyQt5 only. All mayavi imports in this
-project happen through gui submodules, so this runs first.
+Pins the Qt backend before mayavi/pyface are imported. pyface selects a
+binding by first checking sys.modules (PySide6 before PyQt5) and only then
+the QT_API env var, so an explicit pin is required to guarantee it binds
+PyQt5 even if a Qt6 binding (pyside6/pyqt6) happens to be installed.
+Loading both libQt5Core and libQt6Core in one process produces objc
+duplicate-class warnings on macOS and can crash. All mayavi imports in
+this project happen through gui submodules, so this runs first.
 """
 
 import os

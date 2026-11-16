@@ -24,7 +24,7 @@ NeedLR runs on **macOS and Linux** (and Windows). Install from source with conda
 - Python 3.11
 - PyQt5
 - Mayavi (with VTK)
-- NumPy, SciPy, scikit-learn, NetworkX, Matplotlib, laspy
+- NumPy, SciPy, scikit-learn, NetworkX, laspy (plus `lazrs-python` for `.laz`)
 - All conda dependencies are listed in `environment.yml` (conda-forge channel).
 - Optional: `fpsample` (CUDA farthest-point sampling) — only on machines with a CUDA toolkit and GPU. Without it, NeedLR automatically uses the built-in pure-numpy FPS fallbacks.
 
@@ -53,7 +53,7 @@ python main.py
 
 Platform notes:
 
-- **macOS**: run from Terminal; no extra setup needed. (The env contains both Qt5 and Qt6 libraries via matplotlib's pyside6 dependency, but `gui/__init__.py` pins `QT_API=pyqt5` so only Qt5 is ever loaded — do not override `QT_API`.)
+- **macOS**: run from Terminal; no extra setup needed. The env ships only Qt5 (matplotlib is intentionally not a dependency, since its conda build would pull in Qt6); `gui/__init__.py` additionally pins `QT_API=pyqt5` so only Qt5 can ever load — do not override `QT_API`.
 - **Linux**: a display (X11 or Wayland) is required for the GUI and the Mayavi/VTK windows. On a headless machine, use `xvfb-run python main.py`.
 - The 3D windows are positioned with VTK-native calls on macOS/Linux; on Windows the app additionally uses pywin32 if installed.
 

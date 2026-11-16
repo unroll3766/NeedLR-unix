@@ -10,7 +10,27 @@ from PyQt5.QtGui import QGuiApplication
 import time
 import algorithms.community_detection as cd
 import json
-import matplotlib.pyplot as plt
+
+# Anchor colors of the matplotlib "plasma" colormap (sampled at fixed
+# positions). Used to build the label color gradient without importing
+# matplotlib: its conda-forge build depends on pyside6/qt6-main, which
+# would put a second Qt major into the env (see gui/__init__.py).
+_PLASMA_STOPS = [
+    (0.00, (0.050383, 0.029803, 0.527975)),
+    (0.25, (0.482001, 0.018646, 0.652278)),
+    (0.50, (0.800142, 0.278929, 0.470873)),
+    (0.75, (0.940015, 0.585616, 0.250466)),
+    (1.00, (0.941176, 0.972549, 0.129412)),
+]
+
+
+def _plasma_color(t: float) -> tuple:
+    """Piecewise-linear plasma gradient at t in [0, 1]; returns an RGB tuple."""
+    for (t0, c0), (t1, c1) in zip(_PLASMA_STOPS, _PLASMA_STOPS[1:]):
+        if t <= t1:
+            f = 0.0 if t1 == t0 else (t - t0) / (t1 - t0)
+            return tuple(c0[i] + f * (c1[i] - c0[i]) for i in range(3))
+    return _PLASMA_STOPS[-1][1]
 
 
 class PointcloudView:
@@ -150,10 +170,8 @@ class PointcloudView:
         # Necessary steps to apply the position change
         interactor.ReInitialize()
 
-    def get_dynamic_colors(self, num_classes):
-        cmap = plt.get_cmap("plasma")  # or choose 'plasma', 'rainbow', etc.
-        colors = [cmap(i / num_classes) for i in range(num_classes)]
-        return [color[:3] for color in colors]  # Returns a list of RGBA color tuples
+    def get_dynamic_colors(self, num_classes: int) -> list:
+        return [_plasma_color(i / num_classes) for i in range(num_classes)]
 
     def label_color_map(self, labels):
         """Map label values to stable color indices.

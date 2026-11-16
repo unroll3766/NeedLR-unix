@@ -103,4 +103,12 @@ assert len({m["tree"], m["rock-01"], m[7]}) == 3, "distinct labels need distinct
 assert m == view.label_color_map([7, "rock-01", -1, "tree"]), "mapping must be stable"
 print(f"issue3 OK: label_color_map -> {m}")
 
+# matplotlib-free plasma gradient (issue 1 follow-up): valid, distinct RGB colors
+colors = view.get_dynamic_colors(4)
+assert len(colors) == 4
+assert all(len(c) == 3 and all(0.0 <= v <= 1.0 for v in c) for c in colors)
+assert len(set(colors)) == 4, "gradient colors must be distinct"
+assert len(view.get_dynamic_colors(1)) == 1
+print("colormap OK:", [tuple(round(v, 3) for v in c) for c in colors])
+
 print("ISSUES 2-5 VERIFICATION: ALL PASSED")
