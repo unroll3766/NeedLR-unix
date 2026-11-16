@@ -155,6 +155,19 @@ class PointcloudView:
         colors = [cmap(i / num_classes) for i in range(num_classes)]
         return [color[:3] for color in colors]  # Returns a list of RGBA color tuples
 
+    def label_color_map(self, labels):
+        """Map label values to stable color indices.
+
+        Labels may be ints or arbitrary strings (e.g. "tree"); they do not
+        need to be numeric. The unlabeled sentinel -1 is excluded and is
+        rendered gray by the caller.
+
+        Returns:
+            dict: label -> color index, ordered by string representation.
+        """
+        labeled = sorted((label for label in labels if label != -1), key=str)
+        return {label: index for index, label in enumerate(labeled)}
+
     def render_pointcloud(self, show_full_view=None, show_cluster_view=None):
         # Clear existing point cloud data from the figures
         if self.fig_full:
@@ -199,19 +212,16 @@ class PointcloudView:
                     clusters_by_label[label] = []
                 clusters_by_label[label].extend(cluster)
 
-            # Define colors for labels
-            num_classes = max(
-                max([int(key) for key in clusters_by_label.keys()]) + 1, 1
-            )
-            # Assuming labels start from 0
-            dynamic_colors = self.get_dynamic_colors(num_classes)
-            # print("All of dynamic colors: ", dynamic_colors)
-            # print("Dynamic colors has {} colors".format(len(dynamic_colors)))
-            # print("First color is: ", dynamic_colors[0])
+            # Define colors for labels; labels may be arbitrary strings,
+            # only the unlabeled sentinel -1 is special (rendered gray)
+            label_indices = self.label_color_map(clusters_by_label.keys())
+            dynamic_colors = self.get_dynamic_colors(max(len(label_indices), 1))
             # Render each group with its corresponding color
             for label, cluster_indices in clusters_by_label.items():
                 color = (
-                    dynamic_colors[int(label)] if int(label) >= 0 else (0.7, 0.7, 0.7)
+                    dynamic_colors[label_indices[label]]
+                    if label != -1
+                    else (0.7, 0.7, 0.7)
                 )  # Gray for unlabeled
                 group_points = self.points[cluster_indices, :]
 
