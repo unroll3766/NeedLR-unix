@@ -3,7 +3,10 @@
 import json
 import os
 
-settings_file = "app_settings.json"
+# Anchor all project paths to the repo root so the app works regardless of
+# the current working directory it is launched from.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+settings_file = os.path.join(BASE_DIR, "app_settings.json")
 
 current_settings = {
     "night_mode": False,

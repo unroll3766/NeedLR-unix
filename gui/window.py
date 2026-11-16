@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QPushButton, QSty
 from PyQt5 import QtGui
 from gui.pointcloud_view import PointcloudView
 from gui.controls import ControlPanel
+import os
 import webbrowser
 
 import config.settings as settings
@@ -11,7 +12,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NeedLR")
-        self.setWindowIcon(QtGui.QIcon("ReadME_Assets/window_icon.png"))
+        self.setWindowIcon(
+            QtGui.QIcon(os.path.join(settings.BASE_DIR, "ReadME_Assets", "window_icon.png"))
+        )
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
 

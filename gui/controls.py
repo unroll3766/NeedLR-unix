@@ -39,11 +39,11 @@ class ControlPanel(QWidget):
 
         # Add graphic banner to top of layout and make it fit the width of the window
         banner = QLabel(self)
-        pixmap = QPixmap("ReadME_Assets/NeedLR.png")
+        pixmap = QPixmap(os.path.join(settings.BASE_DIR, "ReadME_Assets", "NeedLR.png"))
         banner.setPixmap(pixmap)
         banner.setScaledContents(True)
         # Keep aspect ratio of the image
-        banner.setFixedHeight(pixmap.height() * 0.3)
+        banner.setFixedHeight(int(pixmap.height() * 0.3))
         # set size policy to ignore
         banner.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         layout.addWidget(banner)
