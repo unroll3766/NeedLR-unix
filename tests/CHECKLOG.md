@@ -9,13 +9,13 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   conda-forge on linux-64 (dry-run + real create, exit 0).
 - 2026-11-16 — `python -m py_compile` passes on main.py, gui/*.py, config/*.py,
   algorithms/*.py.
-- 2026-11-16 — Import + offscreen GUI smoke test (`QT_QPA_PLATFORM=offscreen`, launched
-  from /tmp): `config.settings.settings_file` resolves to the repo-root
+- 2026-11-16 — Import + offscreen GUI smoke test (`QT_QPA_PLATFORM=offscreen`, run from a
+  temp CWD): `config.settings.settings_file` resolves to the repo-root
   `app_settings.json` regardless of CWD; `MainWindow` constructs and shows; all five
   downsampling methods return the requested point count on a 5000-point cloud (numpy
   FPS fallbacks active, one-time warning on stderr); KNN graph (512 nodes, 40 clusters
   via label propagation) and MST graph (512 nodes, 511 edges) build correctly.
-  Script: /tmp/needlr_smoke.py, exit 0.
+  Script: tests/smoke_port.py, exit 0.
 - 2026-11-16 — `python main.py` under `QT_QPA_PLATFORM=offscreen` starts and stays in the
   Qt event loop until killed by timeout (exit 124), no high-DPI warning after deferring
   the gui import until after `AA_EnableHighDpiScaling` is set.
@@ -26,7 +26,7 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   300-point cloud (both `_fps_numpy` and `_fps_numpy_kdtree`, 25 samples, identical
   index sequence, no duplicates); edge cases num_samples >= n and num_samples == 1 OK;
   2048 samples from a 200k-point cloud via the kdtree fallback in ~7 s.
-  Script: /tmp/needlr_fps_correctness.py, exit 0.
+  Script: tests/check_fps_fallbacks.py, exit 0.
 - 2026-11-16 — notes.md issues 2-5 verified offscreen via `tests/smoke_gui.py`
   (QT_QPA_PLATFORM=offscreen, exit 0): (2) empty folder now shows "No point cloud files
   found" instead of stuck "Loading..."; (3) `label_color_map` accepts string/int/mixed
@@ -35,6 +35,10 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   and loaded+downsampled+clustered through `load_and_display_pointcloud` (120 pts ->
   64 samples, 10 clusters), `.txt` path unchanged. laspy 2.7 + lazrs-python 0.8.2
   round-trip a .laz file correctly.
+- 2026-11-16 — Review pass: all verification scripts promoted from /tmp into tests/
+  (smoke_port.py, check_fps_fallbacks.py, smoke_gui.py) and re-run from the repo with
+  the NeedLR env; all exit 0. `py_compile` clean on main.py, gui/, config/, algorithms/,
+  tests/.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac. Issue 1 (Qt5/Qt6 objc duplicate
