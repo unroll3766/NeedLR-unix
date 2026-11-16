@@ -22,6 +22,8 @@ from PyQt5.QtGui import QFont, QPixmap
 import os
 from mayavi import mlab
 import config.settings as settings
+from algorithms import label_export
+from algorithms.label_export import DEFAULT_DIM_NAME
 
 
 class ControlPanel(QWidget):
@@ -350,7 +352,51 @@ class ControlPanel(QWidget):
         if self.dest_folder_path:
             self.dest_folder_path_display.setText(self.dest_folder_path)
             self.pointcloud_view.set_destination_folder(self.dest_folder_path)
+            self.btn_export_labels.setEnabled(True)
         self.update_cluster_label()
+
+    def export_labels(self):
+        if not self.pointcloud_files or not self.dest_folder_path:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "Please select a point cloud folder and a destination folder first.",
+            )
+            return
+        filename = self.pointcloud_files[self.current_file_index]
+        src_path = os.path.join(self.folder_path_display.text(), filename)
+        if not os.path.exists(src_path):
+            QMessageBox.critical(self, "Export Failed", f"File not found: {src_path}")
+            return
+        json_path = os.path.join(
+            self.dest_folder_path, os.path.basename(filename) + ".json"
+        )
+        # Persist current in-memory labels before reading the JSON back
+        self.pointcloud_view.current_file = src_path
+        self.pointcloud_view.save_labels_to_file()
+        dim_name = self.export_header_name.text().strip() or DEFAULT_DIM_NAME
+        try:
+            stats = label_export.export_labels_to_original(
+                src_path, json_path, self.dest_folder_path, dim_name
+            )
+        except label_export.LabelExportError as e:
+            QMessageBox.critical(self, "Export Failed", str(e))
+            return
+        lines = [
+            f"Wrote {stats['out_path']}",
+            f"Points: {stats['n_points']}  (extra dim '{stats['dim_name']}', int8)",
+        ]
+        for label_id in sorted(stats["label_counts"]):
+            count = stats["label_counts"][label_id]
+            if label_id == -1:
+                lines.append(f"  unlabeled: {count} points")
+            else:
+                name = next(
+                    (k for k, v in stats["label_map"].items() if v == label_id),
+                    str(label_id),
+                )
+                lines.append(f'  "{name}" (id {label_id}): {count} points')
+        QMessageBox.information(self, "Export Complete", "\n".join(lines))
 
     def save_label_and_next(self):
         # Check if a destination folder is set
