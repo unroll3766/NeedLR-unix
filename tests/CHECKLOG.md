@@ -72,6 +72,14 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   `import gui.window` and a full `python main.py` launch shows 0 libQt6Core loads and
   exactly 1 libQt5Core load — the objc duplicate-class warnings are now impossible.
   All smoke suites + qt-backend check pass on the rebuilt env.
+- 2026-11-16 — Issue 6 implemented and verified (tests/test_label_export.py, exit 0, plus a
+  persistence check in smoke_gui.py): nearest-neighbor label assignment via cKDTree onto the
+  original cloud; LAS/LAZ output gains an int8 extra dim (default "semantic") while existing
+  extra dims (tested with a pre-existing "foo" int32 dim) and xyz are preserved; name
+  conflict with an existing extra dim raises LabelExportError and writes nothing; >127
+  classes raises; .txt gets a 4th column; label_map persisted in the JSON (object schema,
+  old list-format files still load with a derived sorted map; stored maps are honored).
+  UI: "Export Labels to Original Cloud" button + header-name field in the Output groupbox.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

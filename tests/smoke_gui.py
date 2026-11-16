@@ -111,4 +111,27 @@ assert len(set(colors)) == 4, "gradient colors must be distinct"
 assert len(view.get_dynamic_colors(1)) == 1
 print("colormap OK:", [tuple(round(v, 3) for v in c) for c in colors])
 
+# --- Issue 6: label_map persistence in the annotation JSON ---
+import tempfile
+from algorithms.label_export import load_annotation_file
+
+tmpd = tempfile.mkdtemp(prefix="needlr_json_test_")
+view2 = win.controls.pointcloud_view
+view2.destination_folder = tmpd
+view2.current_file = "test.las"
+view2.points = pts[:20]
+view2.clusters = [np.arange(0, 10), np.arange(10, 20)]
+view2.cluster_labels = {}
+view2.label_map = {}
+view2.initialize_labels_file()  # creates the JSON in object schema
+jpath = os.path.join(tmpd, "test.las.json")
+clusters_j, map_j = load_annotation_file(jpath)
+assert len(clusters_j) == 2 and map_j == {}, (len(clusters_j), map_j)
+view2.label_current_cluster("tree")
+view2.save_labels_to_file()
+clusters_j, map_j = load_annotation_file(jpath)
+assert map_j == {"tree": 1}, map_j
+assert clusters_j[0]["label"] == "tree"
+print(f"issue6 OK: label_map persisted and reloaded: {map_j}, cluster0 label={clusters_j[0]['label']!r}")
+
 print("ISSUES 2-5 VERIFICATION: ALL PASSED")

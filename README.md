@@ -66,14 +66,15 @@ Platform notes:
 - Choose downsampling and community detection algorithms as required.
 - Use the GUI to navigate through point clusters and label them.
 - Save annotated data for further analysis or model training.
+- Use **Export Labels to Original Cloud** (Output Settings) to write a copy of the original `.las`/`.laz` with per-point labels in an extra dimension (default header `semantic`, int8), or a 4-column `.txt` for text clouds. Every original point gets the label of its nearest annotated point; existing extra dimensions are preserved, and a header-name conflict is reported as an error.
 
 ### Annotation Schema
 
 - **Format**: Annotations are serialized in JSON, providing a standardized and machine-readable format.
-- **Structure**: Data is organized into clusters, each uniquely identified by a `cluster` key.
+- **Structure**: `{"label_map": {...}, "clusters": [...]}` (older files that are a plain cluster list are still read; their label map is derived deterministically).
 - **Content**:
-  - `label`: Each cluster includes a `label` key, storing user-assigned annotations as numerical string values.
-  - `points`: A nested array under `points` enumerates the coordinates (x, y, z) of each point within the cluster.
+  - `label_map`: Maps each label string to a stable integer id (1..127, unlabeled is -1), used when exporting labels into an int8 extra dimension.
+  - `clusters`: Each cluster includes a `cluster` key, a `label` key (user-assigned annotation, any string), and a `points` key with the (downsampled) coordinates (x, y, z) of each point in the cluster.
 
 ## Algorithms
 
