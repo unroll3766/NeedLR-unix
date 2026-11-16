@@ -33,7 +33,7 @@ NeedLR runs on **macOS and Linux** (and Windows). Install from source with conda
 Clone the repository and create the conda environment (works on macOS — Intel and Apple Silicon — and Linux):
 
 ```bash
-git clone https://github.com/GunnerStone/NeedLR.git
+git clone https://github.com/unroll3766/NeedLR-unix.git
 cd NeedLR
 conda env create -f environment.yml
 conda activate NeedLR
