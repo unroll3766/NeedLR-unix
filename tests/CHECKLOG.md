@@ -27,6 +27,15 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   index sequence, no duplicates); edge cases num_samples >= n and num_samples == 1 OK;
   2048 samples from a 200k-point cloud via the kdtree fallback in ~7 s.
   Script: /tmp/needlr_fps_correctness.py, exit 0.
+- 2026-11-16 — notes.md issues 2-5 verified offscreen via `tests/smoke_gui.py`
+  (QT_QPA_PLATFORM=offscreen, exit 0): (2) empty folder now shows "No point cloud files
+  found" instead of stuck "Loading..."; (3) `label_color_map` accepts string/int/mixed
+  labels, stable ordering, unlabeled -1 excluded; (4) controls wrapped in QScrollArea,
+  window 480x560 fits 800x600 available screen; (5) `.laz` listed by the folder loader
+  and loaded+downsampled+clustered through `load_and_display_pointcloud` (120 pts ->
+  64 samples, 10 clusters), `.txt` path unchanged. laspy 2.7 + lazrs-python 0.8.2
+  round-trip a .laz file correctly.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
-  remains Windows-only). Worth a manual check on a Mac.
+  remains Windows-only). Worth a manual check on a Mac. Issue 1 (Qt5/Qt6 objc duplicate
+  class warnings) likewise needs a Mac to confirm.
