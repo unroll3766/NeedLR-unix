@@ -49,6 +49,18 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   still pass. Caveat: the Qt6 load could not be reproduced on this Linux container
   (pyside6 import fails here even when forced), so the disappearance of the macOS objc
   warnings still needs one confirmation on a Mac.
+- 2026-11-16 — Issue 1 follow-up (Mac retest showed the objc warnings persist):
+  conda-meta inspection showed full `matplotlib` depended on `pyside6` and `vtk-base`
+  on `qt6-main`; pyside6 (auto-selected by pyface/matplotlib when QT_API was unset)
+  was the libQt6Core loader. VTK's own Qt libs (libvtkRenderingQt/GUISupportQt) are
+  never imported by mayavi. Fix: matplotlib removed from environment.yml (it was only
+  used for `plt.get_cmap("plasma")`; pointcloud_view.py now has a built-in plasma
+  gradient), QT_API=pyqt5 pin kept in gui/__init__.py. Local env updated with
+  `conda env update --prune`: pyside6/matplotlib gone; qt6-main still installed via
+  vtk-base but nothing loads it. tests/check_qt_backend.py exit 0 (only PyQt5 in
+  sys.modules); all smoke suites pass, incl. new get_dynamic_colors assertions.
+  Mac action: pull + recreate the env; with no pyside6 installed and the pin set,
+  libQt6Core cannot enter the process. Confirm warnings are gone there.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.
