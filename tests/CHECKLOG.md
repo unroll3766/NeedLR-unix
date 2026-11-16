@@ -19,6 +19,14 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
 - 2026-11-16 — `python main.py` under `QT_QPA_PLATFORM=offscreen` starts and stays in the
   Qt event loop until killed by timeout (exit 124), no high-DPI warning after deferring
   the gui import until after `AA_EnableHighDpiScaling` is set.
+- 2026-11-16 — Entry point is CWD-independent: `python /home/theo/Documents/NeedLR-unix/main.py`
+  launched from /tmp under `QT_QPA_PLATFORM=offscreen` runs in the Qt event loop until
+  killed by timeout (exit 124), no warnings besides the offscreen plugin notice.
+- 2026-11-16 — Numpy FPS fallbacks match a brute-force FPS reference exactly on a
+  300-point cloud (both `_fps_numpy` and `_fps_numpy_kdtree`, 25 samples, identical
+  index sequence, no duplicates); edge cases num_samples >= n and num_samples == 1 OK;
+  2048 samples from a 200k-point cloud via the kdtree fallback in ~7 s.
+  Script: /tmp/needlr_fps_correctness.py, exit 0.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.
