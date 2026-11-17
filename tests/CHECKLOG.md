@@ -110,6 +110,14 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   `from mayavi import mlab` import in controls.py (the toggles were its only users),
   re-ran all 5 suites (exit 0, unpiped) + py_compile + offscreen `python main.py`
   launch (exit 124 = event loop OK).
+- 2026-11-16 — "All points render red" report diagnosed via tests/check_render_highlight.py
+  (exit 0): the red highlight pass provably covers only clusters[current_cluster_index]
+  (2-cluster case: red call got exactly 4/10 points; single-cluster case: all 10, by
+  design). Not a regression — the label-color pass covers all points, the red pass only the
+  current cluster. "All red" happens when community detection yields one giant cluster for
+  the sampled cloud (sampling-dependent; the numpy FPS fallback samples differently than
+  the CUDA fpsample did, so cluster structure on a given cloud can differ from before).
+  On a uniform synthetic cloud the default pipeline gives ~630 clusters, largest ~11/2048.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.
