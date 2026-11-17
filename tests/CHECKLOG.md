@@ -94,6 +94,17 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   (Header field + Export button in the Output groupbox). Regression test in
   smoke_gui.py: widgets exist after initUI, button starts disabled, and a monkeypatched
   select_dest_folder() enables it without error. All 5 suites exit 0.
+- 2026-11-16 — Cluster-view crash fix (user-reported): closing the Cluster Zoom window
+  manually detaches the figure from the mayavi engine, but fig_zoom stayed set, so the
+  next render raised TypeError("Figure not attached to a mayavi engine"); toggling the
+  view off with clusters=None raised TypeError('NoneType' object is not iterable), and
+  the tail used a possibly-unbound `centroid`. Fixes in pointcloud_view.py:
+  _figure_attached() check drops stale figures at the top of render_pointcloud so they
+  are recreated; clusters normalized to [] when None; centroid initialized and the final
+  set_camera_focal_point guarded; new PointcloudView.close_figure() makes the view
+  toggles safe on stale figures. Regression test in smoke_gui.py uses fake figures
+  (mlab.figure/clf monkeypatched, no GL needed): stale figures replaced, clusters=None
+  render safe, close_figure no-op on stale. All 5 suites exit 0.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

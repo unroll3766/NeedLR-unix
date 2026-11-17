@@ -38,6 +38,23 @@ def _plasma_color(t: float) -> tuple:
     return _PLASMA_STOPS[-1][1]
 
 
+def _figure_attached(figure) -> bool:
+    """True if a mayavi figure is still attached to a running engine.
+
+    Closing a figure's window manually detaches it from the engine; using it
+    afterwards raises TypeError("Figure not attached to a mayavi engine").
+    """
+    if figure is None or getattr(figure, "scene", None) is None:
+        return False
+    try:
+        from mayavi.core.engine_manager import engine_manager
+
+        engine_manager.find_figure_engine(figure)
+        return True
+    except Exception:
+        return False
+
+
 class PointcloudView:
     def __init__(self, update_filename_callback=None):
         self.update_filename = update_filename_callback
@@ -207,6 +224,13 @@ class PointcloudView:
         return {label: index for index, label in enumerate(labeled)}
 
     def render_pointcloud(self, show_full_view=None, show_cluster_view=None):
+        # A manually closed figure window detaches the figure from the mayavi
+        # engine; drop such stale figures so they are recreated below.
+        if self.fig_full is not None and not _figure_attached(self.fig_full):
+            self.fig_full = None
+        if self.fig_zoom is not None and not _figure_attached(self.fig_zoom):
+            self.fig_zoom = None
+
         # Clear existing point cloud data from the figures
         if self.fig_full:
             mlab.clf(self.fig_full)
@@ -214,6 +238,11 @@ class PointcloudView:
         if self.fig_zoom:
             mlab.clf(self.fig_zoom)
             zoom_camera = None
+
+        # Rendering before any file loaded (or after a failed load) must not crash
+        if self.clusters is None:
+            self.clusters = []
+        centroid = None
 
         screen_size = QGuiApplication.primaryScreen().availableGeometry()
         width, height = screen_size.width() // 4, screen_size.height() // 2
@@ -343,7 +372,8 @@ class PointcloudView:
                 self.set_camera_focal_point(centroid, self.fig_zoom, self.zoom_camera)
 
         self.zoom_to_cluster(self.fig_full, 2)
-        self.set_camera_focal_point(centroid, self.fig_full, self.full_camera)
+        if centroid is not None:
+            self.set_camera_focal_point(centroid, self.fig_full, self.full_camera)
 
         # Move the windows after rendering
         if show_full_view:
@@ -492,6 +522,17 @@ class PointcloudView:
             # Only update the background color if the figures are initialized
             self.fig_full.scene.background = bg_color
             self.fig_zoom.scene.background = bg_color
+
+    def close_figure(self, attr: str) -> None:
+        """Close a mayavi figure if it is still attached to an engine, then
+        forget it (set the attribute to None). Safe on stale/closed figures."""
+        figure = getattr(self, attr)
+        if figure is not None and _figure_attached(figure):
+            try:
+                mlab.close(figure)
+            except Exception:
+                pass
+        setattr(self, attr, None)
 
     def move_window_to_position(self, title, x, y, width, height):
         # Window titles are set when the figures are created; map them back

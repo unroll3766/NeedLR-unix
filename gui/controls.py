@@ -665,8 +665,7 @@ class ControlPanel(QWidget):
         settings.current_settings["show_full_view"] = checked
         # refresh point cloud view
         if not checked and self.pointcloud_view.fig_full is not None:
-            mlab.close(self.pointcloud_view.fig_full)
-            self.pointcloud_view.fig_full = None
+            self.pointcloud_view.close_figure("fig_full")
         self.pointcloud_view.render_pointcloud(
             show_full_view=self.checkbox_full_view.isChecked(),
             show_cluster_view=self.checkbox_cluster_view.isChecked(),
@@ -676,8 +675,7 @@ class ControlPanel(QWidget):
         settings.current_settings["show_cluster_view"] = checked
         # refresh point cloud view
         if not checked and self.pointcloud_view.fig_zoom is not None:
-            mlab.close(self.pointcloud_view.fig_zoom)
-            self.pointcloud_view.fig_zoom = None
+            self.pointcloud_view.close_figure("fig_zoom")
         self.pointcloud_view.render_pointcloud(
             show_full_view=self.checkbox_full_view.isChecked(),
             show_cluster_view=self.checkbox_cluster_view.isChecked(),

@@ -164,4 +164,54 @@ assert win.controls.btn_export_labels.isEnabled() is True
 assert win.controls.dest_folder_path == tmpd2
 print("issue6-ui OK: export widgets present; select_dest_folder enables button, no crash")
 
+# --- Cluster-view crash regression: stale figure after closing the Cluster
+# --- Zoom window, and rendering with clusters=None must not crash ---
+import types
+from mayavi import mlab
+from gui.pointcloud_view import _figure_attached
+
+assert _figure_attached(None) is False
+dead = types.SimpleNamespace(scene=None)
+assert _figure_attached(dead) is False
+
+view4 = win.controls.pointcloud_view
+view4.points = None
+view4.clusters = None
+view4.fig_full = dead  # stale figure, as after manually closing the window
+view4.fig_zoom = dead
+made = []
+
+
+def fake_figure(*a, **k):
+    cam = types.SimpleNamespace(
+        position=(0, 0, 0),
+        focal_point=(0, 0, 0),
+        view_angle=30.0,
+        view_up=(0, 0, 1),
+        clipping_range=(0.0, 1.0),
+        zoom=lambda factor: None,
+    )
+    scene = types.SimpleNamespace(
+        camera=cam, render=lambda: None, render_window=None, interactor=None
+    )
+    f = types.SimpleNamespace(scene=scene, name="fake")
+    made.append(f)
+    return f
+
+
+orig_figure, orig_clf = mlab.figure, mlab.clf
+mlab.figure = fake_figure
+mlab.clf = lambda *a, **k: None
+try:
+    view4.render_pointcloud(show_full_view=True, show_cluster_view=True)
+    assert view4.clusters == [], "clusters must be normalized to [] not None"
+    assert view4.fig_full in made and view4.fig_zoom in made, "stale figures must be recreated"
+    view4.render_pointcloud(show_full_view=True, show_cluster_view=False)  # toggle-off path
+finally:
+    mlab.figure, mlab.clf = orig_figure, orig_clf
+# close_figure on a stale figure must be a safe no-op
+view4.close_figure("fig_zoom")
+assert view4.fig_zoom is None
+print("cluster-view OK: stale figures replaced, clusters=None safe, close_figure safe")
+
 print("ISSUES 2-5 VERIFICATION: ALL PASSED")
