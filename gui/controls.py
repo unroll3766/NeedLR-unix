@@ -107,6 +107,25 @@ class ControlPanel(QWidget):
 
         output_groupbox_layout.addLayout(dest_folder_layout)
 
+        """ Label export to the original point cloud """
+        export_layout = QHBoxLayout()
+        export_layout.addWidget(QLabel("Header:"))
+        self.export_header_name = QLineEdit(DEFAULT_DIM_NAME, self)
+        self.export_header_name.setMaximumWidth(120)
+        self.export_header_name.setToolTip(
+            "Extra-dimension name for the labels in the exported LAS/LAZ file"
+        )
+        self.btn_export_labels = QPushButton("Export Labels to Original Cloud", self)
+        self.btn_export_labels.setEnabled(False)
+        self.btn_export_labels.setToolTip(
+            "Write a copy of the original cloud with per-point labels in an "
+            "extra dimension (int8), based on the saved annotation JSON"
+        )
+        self.btn_export_labels.clicked.connect(self.export_labels)
+        export_layout.addWidget(self.export_header_name)
+        export_layout.addWidget(self.btn_export_labels)
+        output_groupbox_layout.addLayout(export_layout)
+
         # add output groupbox to layout
         output_groupbox.setLayout(output_groupbox_layout)
         layout.addWidget(output_groupbox)

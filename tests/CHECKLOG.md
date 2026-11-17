@@ -88,6 +88,12 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   and an empty annotation raises LabelExportError. The view's JSON load also tolerates
   >127-label old files (map re-derived at export, where the proper error is raised).
   All 5 test suites exit 0 after the fixes; test_label_export.py now has 9 checks.
+- 2026-11-16 — Bugfix: `select_dest_folder` referenced `self.btn_export_labels` but the
+  widget-creation block in initUI had been lost (never committed), so selecting a
+  destination folder raised AttributeError (crash on macOS). Re-added the block
+  (Header field + Export button in the Output groupbox). Regression test in
+  smoke_gui.py: widgets exist after initUI, button starts disabled, and a monkeypatched
+  select_dest_folder() enables it without error. All 5 suites exit 0.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

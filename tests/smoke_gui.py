@@ -140,4 +140,28 @@ view2.label_current_cluster("z")
 assert view2.label_map["z"] == 6, view2.label_map
 print(f"issue6b OK: gap-safe label id assignment: {view2.label_map}")
 
+# --- Issue 6 UI regression: export widgets exist; select_dest_folder must not crash ---
+from PyQt5.QtWidgets import QFileDialog
+
+assert hasattr(win.controls, "btn_export_labels"), "btn_export_labels missing from initUI"
+assert hasattr(win.controls, "export_header_name"), "export_header_name missing from initUI"
+assert win.controls.btn_export_labels.isEnabled() is False
+assert win.controls.export_header_name.text() == "semantic"
+tmpd2 = tempfile.mkdtemp(prefix="needlr_dest_test_")
+view3 = win.controls.pointcloud_view
+view3.current_file = "x.las"
+view3.clusters = [np.arange(0, 3)]
+view3.points = pts[:3]
+view3.cluster_labels = {}
+view3.label_map = {}
+_orig_dialog = QFileDialog.getExistingDirectory
+QFileDialog.getExistingDirectory = staticmethod(lambda *a, **k: tmpd2)
+try:
+    win.controls.select_dest_folder()  # previously raised AttributeError
+finally:
+    QFileDialog.getExistingDirectory = _orig_dialog
+assert win.controls.btn_export_labels.isEnabled() is True
+assert win.controls.dest_folder_path == tmpd2
+print("issue6-ui OK: export widgets present; select_dest_folder enables button, no crash")
+
 print("ISSUES 2-5 VERIFICATION: ALL PASSED")
