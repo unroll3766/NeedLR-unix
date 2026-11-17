@@ -105,6 +105,11 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   toggles safe on stale figures. Regression test in smoke_gui.py uses fake figures
   (mlab.figure/clf monkeypatched, no GL needed): stale figures replaced, clusters=None
   render safe, close_figure no-op on stale. All 5 suites exit 0.
+- 2026-11-16 — Review pass on the cluster-view fix: verified all intended changes are in
+  commit 7401c63 and the working tree (grep-checked), removed the now-unused
+  `from mayavi import mlab` import in controls.py (the toggles were its only users),
+  re-ran all 5 suites (exit 0, unpiped) + py_compile + offscreen `python main.py`
+  launch (exit 124 = event loop OK).
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

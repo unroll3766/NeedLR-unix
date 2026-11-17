@@ -20,7 +20,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QPixmap
 import os
-from mayavi import mlab
 import config.settings as settings
 from algorithms import label_export
 from algorithms.label_export import DEFAULT_DIM_NAME
