@@ -2,6 +2,7 @@
     "night_mode": true,
     "point_size": 0.2,
     "cluster_point_size": 0.2,
+    "cluster_dims": ["x", "y", "z"],
     "show_full_view": true,
     "show_cluster_view": false,
     "eco_mode": true,

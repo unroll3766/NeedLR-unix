@@ -12,6 +12,7 @@ default_settings = {
     "night_mode": False,
     "point_size": 1.0,  # Point size of the background (non-highlighted) points
     "cluster_point_size": 1.0,  # Point size of the highlighted cluster
+    "cluster_dims": ["x", "y", "z"],  # Point-cloud columns used for clustering distance
     "show_full_view": True,
     "show_cluster_view": True,
     "eco_mode": False,

@@ -93,7 +93,9 @@ def _fps_numpy_kdtree(points: np.ndarray, num_samples: int) -> np.ndarray:
     return selected
 
 
-def random_downsample(points: np.ndarray, target_count: int) -> np.ndarray:
+def random_downsample(
+    points: np.ndarray, target_count: int, return_indices: bool = False
+) -> np.ndarray:
     """
     Randomly downsamples a point cloud to a specified number of points.
 
@@ -103,15 +105,19 @@ def random_downsample(points: np.ndarray, target_count: int) -> np.ndarray:
 
     Returns:
     np.ndarray: A downsampled numpy array of shape (target_count, 3).
+    If return_indices is True, returns the sampled row indices instead.
     """
     if len(points) <= target_count:
-        return points
+        indices = np.arange(len(points))
+        return indices if return_indices else points
     indices = np.random.choice(len(points), target_count, replace=False)
-    return points[indices]
+    return indices if return_indices else points[indices]
 
 
 # Vanilla FPS
-def vanilla_fps(points: np.ndarray, num_samples: int) -> np.ndarray:
+def vanilla_fps(
+    points: np.ndarray, num_samples: int, return_indices: bool = False
+) -> np.ndarray:
     """
     Perform vanilla farthest point sampling on a point cloud.
 
@@ -121,19 +127,25 @@ def vanilla_fps(points: np.ndarray, num_samples: int) -> np.ndarray:
     Args:
     points (np.ndarray): Point cloud data.
     num_samples (int): Number of points to sample.
+    return_indices (bool): Return the sampled row indices instead of the
+    sampled points.
 
     Returns:
-    np.ndarray: The sampled points.
+    np.ndarray: The sampled points (or indices).
     """
     fpsample = _load_fpsample()
     if fpsample is not None:
-        return points[fpsample.fps_sampling(points, num_samples)]
-    _warn_fallback("vanilla_fps")
-    return points[_fps_numpy(points, num_samples)]
+        indices = fpsample.fps_sampling(points, num_samples)
+    else:
+        _warn_fallback("vanilla_fps")
+        indices = _fps_numpy(points, num_samples)
+    return indices if return_indices else points[indices]
 
 
 # FPS + NPDU
-def fps_npdu(points: np.ndarray, num_samples: int, k: int = None) -> np.ndarray:
+def fps_npdu(
+    points: np.ndarray, num_samples: int, k: int = None, return_indices: bool = False
+) -> np.ndarray:
     """
     Perform FPS with NPDU heuristic on a point cloud.
     **Require dimensional locality and give sub-optimal answers.
@@ -145,22 +157,28 @@ def fps_npdu(points: np.ndarray, num_samples: int, k: int = None) -> np.ndarray:
     points (np.ndarray): Point cloud data.
     num_samples (int): Number of points to sample.
     k (int, optional): Window size for NPDU.
+    return_indices (bool): Return the sampled row indices instead of the
+    sampled points.
 
     Returns:
-    np.ndarray: The sampled points.
+    np.ndarray: The sampled points (or indices).
     """
     fpsample = _load_fpsample()
     if fpsample is not None:
         if k is not None:
-            return points[fpsample.fps_npdu_sampling(points, num_samples, k=k)]
+            indices = fpsample.fps_npdu_sampling(points, num_samples, k=k)
         else:
-            return points[fpsample.fps_npdu_sampling(points, num_samples)]
-    _warn_fallback("fps_npdu")
-    return points[_fps_numpy(points, num_samples)]
+            indices = fpsample.fps_npdu_sampling(points, num_samples)
+    else:
+        _warn_fallback("fps_npdu")
+        indices = _fps_numpy(points, num_samples)
+    return indices if return_indices else points[indices]
 
 
 # FPS + NPDU + KDTree
-def fps_npdu_kdtree(points: np.ndarray, num_samples: int, k: int = None) -> np.ndarray:
+def fps_npdu_kdtree(
+    points: np.ndarray, num_samples: int, k: int = None, return_indices: bool = False
+) -> np.ndarray:
     """
     Perform FPS with NPDU heuristic and KDTree on a point cloud.
 
@@ -171,23 +189,29 @@ def fps_npdu_kdtree(points: np.ndarray, num_samples: int, k: int = None) -> np.n
     points (np.ndarray): Point cloud data.
     num_samples (int): Number of points to sample.
     k (int, optional): Window size for NPDU.
+    return_indices (bool): Return the sampled row indices instead of the
+    sampled points.
 
     Returns:
-    np.ndarray: The sampled points.
+    np.ndarray: The sampled points (or indices).
     """
     fpsample = _load_fpsample()
     if fpsample is not None:
         if k is not None:
-            return points[fpsample.fps_npdu_kdtree_sampling(points, num_samples, k=k)]
+            indices = fpsample.fps_npdu_kdtree_sampling(points, num_samples, k=k)
         else:
-            return points[fpsample.fps_npdu_kdtree_sampling(points, num_samples)]
-    _warn_fallback("fps_npdu_kdtree")
-    return points[_fps_numpy_kdtree(points, num_samples)]
+            indices = fpsample.fps_npdu_kdtree_sampling(points, num_samples)
+    else:
+        _warn_fallback("fps_npdu_kdtree")
+        indices = _fps_numpy_kdtree(points, num_samples)
+    return indices if return_indices else points[indices]
 
 
 # KDTree-based FPS
 # Deprecated
-def kdtree_fps(points: np.ndarray, num_samples: int) -> np.ndarray:
+def kdtree_fps(
+    points: np.ndarray, num_samples: int, return_indices: bool = False
+) -> np.ndarray:
     """
     Perform KDTree-based farthest point sampling on a point cloud.
 
@@ -197,19 +221,25 @@ def kdtree_fps(points: np.ndarray, num_samples: int) -> np.ndarray:
     Args:
     points (np.ndarray): Point cloud data.
     num_samples (int): Number of points to sample.
+    return_indices (bool): Return the sampled row indices instead of the
+    sampled points.
 
     Returns:
-    np.ndarray: The sampled points.
+    np.ndarray: The sampled points (or indices).
     """
     fpsample = _load_fpsample()
     if fpsample is not None:
-        return points[fpsample.bucket_fps_kdtree_sampling(points, num_samples)]
-    _warn_fallback("kdtree_fps")
-    return points[_fps_numpy_kdtree(points, num_samples)]
+        indices = fpsample.bucket_fps_kdtree_sampling(points, num_samples)
+    else:
+        _warn_fallback("kdtree_fps")
+        indices = _fps_numpy_kdtree(points, num_samples)
+    return indices if return_indices else points[indices]
 
 
 # Bucket-based FPS or QuickFPS
-def bucket_fps_kdline(points: np.ndarray, num_samples: int, h: int = 3) -> np.ndarray:
+def bucket_fps_kdline(
+    points: np.ndarray, num_samples: int, h: int = 3, return_indices: bool = False
+) -> np.ndarray:
     """
     Perform bucket-based (QuickFPS) farthest point sampling on a point cloud.
 
@@ -220,12 +250,16 @@ def bucket_fps_kdline(points: np.ndarray, num_samples: int, h: int = 3) -> np.nd
     points (np.ndarray): Point cloud data.
     num_samples (int): Number of points to sample.
     h (int): Height of the KDTree (3 for small, 7 for medium, 9 for large data).
+    return_indices (bool): Return the sampled row indices instead of the
+    sampled points.
 
     Returns:
-    np.ndarray: The sampled points.
+    np.ndarray: The sampled points (or indices).
     """
     fpsample = _load_fpsample()
     if fpsample is not None:
-        return points[fpsample.bucket_fps_kdline_sampling(points, num_samples, h=h)]
-    _warn_fallback("bucket_fps_kdline")
-    return points[_fps_numpy_kdtree(points, num_samples)]
+        indices = fpsample.bucket_fps_kdline_sampling(points, num_samples, h=h)
+    else:
+        _warn_fallback("bucket_fps_kdline")
+        indices = _fps_numpy_kdtree(points, num_samples)
+    return indices if return_indices else points[indices]

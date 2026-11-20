@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (
     QDoubleSpinBox,
     QComboBox,
     QSpinBox,
+    QListWidget,
+    QListWidgetItem,
     QApplication,
     QMessageBox,
     QStyle,
@@ -283,6 +285,13 @@ class ControlPanel(QWidget):
         graph_layout.addWidget(self.k_value)
 
         graph_groupbox_layout.addLayout(graph_layout)
+
+        # Which point-cloud columns feed the graph/cluster distance
+        graph_groupbox_layout.addWidget(QLabel("Clustering Dimensions (min 1):", self))
+        self.cluster_dims_list = QListWidget(self)
+        self.cluster_dims_list.setMaximumHeight(120)
+        self.cluster_dims_list.itemChanged.connect(self.on_cluster_dims_changed)
+        graph_groupbox_layout.addWidget(self.cluster_dims_list)
         graph_groupbox.setLayout(graph_groupbox_layout)
         layout.addWidget(graph_groupbox)
 
@@ -495,6 +504,53 @@ class ControlPanel(QWidget):
         else:
             self.file_name_display.setText("No point cloud files found")
             print("No files to display or folder path is not set.")
+        self.populate_cluster_dims()
+
+    def populate_cluster_dims(self):
+        """Fill the clustering-dimensions list from the loaded file's columns,
+        applying the persisted cluster_dims selection (default x, y, z)."""
+        names = self.pointcloud_view.feature_names or ["x", "y", "z"]
+        saved = settings.current_settings.get("cluster_dims", ["x", "y", "z"])
+        selected = [n for n in saved if n in names] or ["x", "y", "z"]
+        self.cluster_dims_list.blockSignals(True)
+        self.cluster_dims_list.clear()
+        for n in names:
+            item = QListWidgetItem(n)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if n in selected else Qt.Unchecked)
+            self.cluster_dims_list.addItem(item)
+        self.cluster_dims_list.blockSignals(False)
+        self.pointcloud_view.cluster_dims = self.selected_cluster_dims()
+
+    def selected_cluster_dims(self):
+        return [
+            self.cluster_dims_list.item(i).text()
+            for i in range(self.cluster_dims_list.count())
+            if self.cluster_dims_list.item(i).checkState() == Qt.Checked
+        ]
+
+    def on_cluster_dims_changed(self, item):
+        selected = self.selected_cluster_dims()
+        if not selected:
+            # At least one dimension must stay selected: revert this toggle
+            self.cluster_dims_list.blockSignals(True)
+            item.setCheckState(Qt.Checked)
+            self.cluster_dims_list.blockSignals(False)
+            return
+        settings.current_settings["cluster_dims"] = selected
+        self.pointcloud_view.cluster_dims = selected
+        if self.pointcloud_view.current_folder_path:
+            self.show_loading_indicator()
+            self.pointcloud_view.load_and_display_pointcloud(
+                self.pointcloud_view.current_folder_path,
+                downsampling_method=self.downsampling_algorithm_selector.currentData(),
+                target_count=self.target_point_count.value(),
+                show_full_view=self.checkbox_full_view.isChecked(),
+                show_cluster_view=self.checkbox_cluster_view.isChecked(),
+                superpoint_graph_method=self.superpoint_graph_algorithm_selector.currentData(),
+                k_value=self.k_value.value(),
+                clustering_algorithm=self.community_detection_selector.currentData(),
+            )
 
     def show_loading_indicator(self):
         self.file_name_display.setText("Loading...")

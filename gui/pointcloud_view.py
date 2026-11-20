@@ -76,6 +76,12 @@ class PointcloudView:
         self.target_count = None
         self.old_target_count = None
         self.points = None
+        self.features = None  # full per-point matrix (x, y, z in the first 3 cols)
+        self.feature_names = []
+        self.sampled_features = None
+        self.cluster_dims = list(
+            settings.current_settings.get("cluster_dims", ["x", "y", "z"])
+        )
         self.current_file = None
         self.old_file = None
         self.graph = None
@@ -413,45 +419,65 @@ class PointcloudView:
             ):
                 if self.current_file.endswith((".las", ".laz")):
                     las = laspy.read(self.current_file)
-                    self.points = np.vstack((las.x, las.y, las.z)).transpose()
+                    self._load_las_features(las)
                 elif self.current_file.endswith(".txt"):
-                    self.points = self.load_xyz_file(self.current_file)
+                    self._load_txt_features(self.current_file)
+                # self.points stays the xyz cloud (rendering/labels use 3 cols)
+                self.points = self.features[:, :3].copy()
 
-            # Apply downsampling
+            # Apply downsampling (spatial, on xyz only); keep the feature
+            # matrix aligned by sampling with the same indices
             # print("Applying {} downsampling".format(downsampling_method))
             curr_time = time.time()
+            indices = None
             if downsampling_method == "random":
-                self.points = downsampling.random_downsample(self.points, target_count)
+                indices = downsampling.random_downsample(
+                    self.points, target_count, return_indices=True
+                )
             elif downsampling_method == "vanilla_fps":
-                self.points = downsampling.vanilla_fps(self.points, target_count)
+                indices = downsampling.vanilla_fps(
+                    self.points, target_count, return_indices=True
+                )
             elif downsampling_method == "fps_npdu":
-                self.points = downsampling.fps_npdu(self.points, target_count)
+                indices = downsampling.fps_npdu(
+                    self.points, target_count, return_indices=True
+                )
             elif downsampling_method == "fps_npdu_kdtree":
-                self.points = downsampling.fps_npdu_kdtree(self.points, target_count)
+                indices = downsampling.fps_npdu_kdtree(
+                    self.points, target_count, return_indices=True
+                )
             elif downsampling_method == "bucket_fps_kdline_small":
-                self.points = downsampling.bucket_fps_kdline(
-                    self.points, target_count, h=4
+                indices = downsampling.bucket_fps_kdline(
+                    self.points, target_count, h=4, return_indices=True
                 )
             elif downsampling_method == "bucket_fps_kdline_medium":
-                self.points = downsampling.bucket_fps_kdline(
-                    self.points, target_count, h=7
+                indices = downsampling.bucket_fps_kdline(
+                    self.points, target_count, h=7, return_indices=True
                 )
             elif downsampling_method == "bucket_fps_kdline_large":
-                self.points = downsampling.bucket_fps_kdline(
-                    self.points, target_count, h=9
+                indices = downsampling.bucket_fps_kdline(
+                    self.points, target_count, h=9, return_indices=True
                 )
+            if indices is not None:
+                self.points = self.points[indices]
+                if self.features is not None:
+                    self.sampled_features = self.features[indices]
+                else:
+                    self.sampled_features = self.points
             print("Downsampling took", time.time() - curr_time, "seconds")
 
-            # Perform superpoint graph construction
+            # Perform superpoint graph construction on the selected
+            # clustering dimensions
             # print(f"Performing {superpoint_graph_method} construction")
+            graph_points = self._clustering_matrix()
             if superpoint_graph_method == "knn":
                 # Call superpoint graph construction method
                 curr_time = time.time()
-                self.graph = superpoint_graph.create_knn_graph(self.points, k_value)
+                self.graph = superpoint_graph.create_knn_graph(graph_points, k_value)
             elif superpoint_graph_method == "mst":
                 # Call superpoint graph construction method
                 curr_time = time.time()
-                self.graph = superpoint_graph.create_mst_graph(self.points)
+                self.graph = superpoint_graph.create_mst_graph(graph_points)
                 # print(f"Graph construction took {time.time() - curr_time} seconds")
 
             # Apply community detection
@@ -506,15 +532,51 @@ class PointcloudView:
         self.current_cluster_index = 0
         self.update_cluster_label_callback()
 
-    def load_xyz_file(self, file_path):
-        with open(file_path, "r") as file:
-            # Assuming the format of each line is 'X Y Z ...' (additional attributes are ignored)
-            data = [
-                line.strip().split()[:3] for line in file
-            ]  # Select only the first three elements (X, Y, Z)
+    def _load_las_features(self, las):
+        """Build the full per-point feature matrix from a laspy LasData:
+        all point-format dimensions (standard + extra), x/y/z first."""
+        rest = [
+            n for n in las.point_format.dimension_names if n not in ("x", "y", "z")
+        ]
+        names = ["x", "y", "z"] + list(rest)
+        cols = [np.asarray(getattr(las, n), dtype=float) for n in names]
+        self.features = np.column_stack(cols)
+        self.feature_names = names
 
-        # Convert the data to a numpy array of floats
-        return np.array(data, dtype=float)
+    def _load_txt_features(self, file_path):
+        """Load all columns of a whitespace-separated .txt file into the
+        feature matrix; columns past xyz are named col3, col4, ..."""
+        with open(file_path, "r") as file:
+            data = np.array(
+                [line.strip().split() for line in file if line.strip()], dtype=float
+            )
+        if data.size == 0:
+            data = np.empty((0, 3), dtype=float)
+        elif data.ndim == 1:
+            data = data.reshape(1, -1)
+        self.features = data
+        k = data.shape[1]
+        self.feature_names = ["x", "y", "z"] + [f"col{i}" for i in range(3, k)]
+
+    def _clustering_matrix(self):
+        """Feature matrix used for graph/cluster distances: the sampled
+        points restricted to the selected cluster_dims columns.
+
+        Falls back to xyz when no features were loaded or none of the
+        selected names exist in the current file (at least one column is
+        always returned)."""
+        base = self.sampled_features if self.sampled_features is not None else self.points
+        if base is None:
+            return None
+        names = self.feature_names if self.feature_names else ["x", "y", "z"]
+        idx = [
+            names.index(d)
+            for d in self.cluster_dims
+            if d in names and names.index(d) < base.shape[1]
+        ]
+        if not idx:
+            idx = list(range(min(3, base.shape[1])))
+        return base[:, idx]
 
     def set_point_size(self, size):
         settings.current_settings["point_size"] = size

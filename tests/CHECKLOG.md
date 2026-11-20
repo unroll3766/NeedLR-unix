@@ -162,6 +162,34 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   and git status stays clean after running them. Also hardened load_settings() to
   fall back to defaults when the JSON file is valid but not an object. Re-ran all
   8 scripts (exit 0) + py_compile; app_settings.json untouched by the test runs.
+- 2026-11-20 — Selectable clustering dimensions implemented and verified: the user
+  picks which point-cloud columns feed the graph/cluster distance (e.g. reflectance
+  for spectral clustering); any number of columns, at least one enforced. View now
+  loads a full feature matrix (`self.features`, x/y/z first) alongside the xyz
+  `self.points` (rendering/annotation-JSON/label-export unchanged, still Nx3):
+  LAS/LAZ expose all point-format dimensions incl. extra dims via
+  `las.point_format.dimension_names`; .txt exposes all columns as x,y,z,col3,col4...
+  Downsampling stays spatial (xyz) and all public downsamplers gained a backward-
+  compatible `return_indices=True` kwarg so the view slices features with the same
+  indices. Graph construction uses `_clustering_matrix()` = sampled features
+  restricted to `cluster_dims` (default ["x","y","z"], persisted in settings;
+  unknown names fall back to xyz). UI: checkable "Clustering Dimensions (min 1)"
+  list in the Graph Construction groupbox, populated per file from feature_names,
+  saved selection applied, unchecking the last item is reverted, any change persists
+  cluster_dims and reloads the pipeline. Test tests/check_cluster_dims.py (exit 0):
+  return_indices == points[indices] for all 6 downsamplers + target>=n edge;
+  5-col .txt and .laz-with-reflectance loading (points stay Nx3); knn graph captured
+  receives exactly the selected columns; UI populate/min-1/reload checks. All 9
+  test scripts exit 0, py_compile clean, offscreen `python main.py` OK (124),
+  app_settings.json untouched by test runs.
+- 2026-11-20 — Review pass on the clustering-dims commit: verified the full diff
+  (downsampling return_indices on all 6 functions, controls list + handlers, view
+  feature loading/graph matrix), confirmed load_xyz_file fully removed, re-ran all
+  9 scripts (exit 0). Hardened one edge found in review: an empty .txt file now
+  loads as a (0, 3) matrix instead of (1, 0) (test added to check_cluster_dims.py).
+  Known limitation, accepted: on the prev/next-file path that loads an existing
+  annotation JSON, the dims list keeps the previous file's columns (no
+  re-clustering happens on that path, so cluster_dims is unused there).
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.
