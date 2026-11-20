@@ -137,6 +137,31 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   1 arrow in the full pane after every render, red set covering only the current
   cluster). All 7 test scripts exit 0, py_compile clean, offscreen `python main.py`
   launch OK (exit 124).
+- 2026-11-20 — Separate background/cluster point sizes (notes.md "Thoughts" 1)
+  implemented and verified: new `cluster_point_size` setting (default 1.0) in
+  config/settings.py; `load_settings()` now merges the JSON file over
+  `default_settings` so keys missing from older app_settings.json files fall back
+  to defaults (previously the file was returned verbatim, so a new key would
+  KeyError); key added to app_settings.json. render_pointcloud uses
+  `point_size * 0.6` for background points (unchanged) and `cluster_point_size`
+  for the red highlighted cluster in both panes. UI: new "Cluster Size" spinbox
+  next to "Point Size" (controls.py) with its own handler that re-renders live;
+  eco mode disables both selectors, and the eco checkbox now connects before
+  setChecked so an initial eco_mode=true disables them at startup. Test
+  tests/check_point_sizes.py (exit 0): defaults-merge with an old settings file,
+  both spinboxes present with settings values, each writes only its own key,
+  render mapping verified via recorded mlab calls (background 0.8*0.6, red 2.0
+  in both panes), handler re-renders at the new cluster size, eco mode toggling.
+  All 8 test scripts exit 0, py_compile clean, offscreen `python main.py` OK (124).
+- 2026-11-20 — Review pass on the point-size commit found a test side effect:
+  check_point_sizes.py mutates settings.current_settings and MainWindow.closeEvent
+  saves settings when the window is destroyed at interpreter exit, so a test run
+  overwrote the repo's app_settings.json with test values (caught via git status;
+  file restored). Fixed: all tests that construct MainWindow (smoke_port.py,
+  smoke_gui.py, check_point_sizes.py) now stub settings.save_settings to a no-op,
+  and git status stays clean after running them. Also hardened load_settings() to
+  fall back to defaults when the JSON file is valid but not an object. Re-ran all
+  8 scripts (exit 0) + py_compile; app_settings.json untouched by the test runs.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

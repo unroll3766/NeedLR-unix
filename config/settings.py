@@ -8,9 +8,10 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 settings_file = os.path.join(BASE_DIR, "app_settings.json")
 
-current_settings = {
+default_settings = {
     "night_mode": False,
-    "point_size": 1.0,  # Default point size
+    "point_size": 1.0,  # Point size of the background (non-highlighted) points
+    "cluster_point_size": 1.0,  # Point size of the highlighted cluster
     "show_full_view": True,
     "show_cluster_view": True,
     "eco_mode": False,
@@ -27,10 +28,15 @@ def load_settings():
     if os.path.exists(settings_file):
         try:
             with open(settings_file, "r") as file:
-                return json.load(file)
+                loaded = json.load(file)
+            if isinstance(loaded, dict):
+                # Merge over the defaults so keys missing from an older
+                # settings file (e.g. newly introduced options) still get a
+                # value.
+                return {**default_settings, **loaded}
         except json.JSONDecodeError:
             pass
-    return current_settings
+    return dict(default_settings)
 
 
 def save_settings(settings):

@@ -31,6 +31,10 @@ print("settings_file anchored to repo root:", settings.settings_file)
 from gui.window import MainWindow
 from gui import window_utils
 
+# Tests must never write the repo's app_settings.json (MainWindow.closeEvent
+# saves settings when the window is destroyed at exit).
+settings.save_settings = lambda *a, **k: None
+
 win = MainWindow()
 win.show()
 window_utils.move_vtk_window(None, 0, 0, 100, 100)  # no-op path must not crash

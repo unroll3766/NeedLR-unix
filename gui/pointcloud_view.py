@@ -315,7 +315,7 @@ class PointcloudView:
                     cluster_points[:, 1],
                     cluster_points[:, 2],
                     figure=self.fig_full,
-                    scale_factor=settings.current_settings["point_size"],
+                    scale_factor=settings.current_settings["cluster_point_size"],
                     color=(1, 0, 0),  # Red color
                     mode="sphere",
                 )
@@ -365,7 +365,7 @@ class PointcloudView:
                     cluster_points[:, 1],
                     cluster_points[:, 2],
                     figure=self.fig_zoom,
-                    scale_factor=settings.current_settings["point_size"],
+                    scale_factor=settings.current_settings["cluster_point_size"],
                     color=(1, 0, 0),  # Red color,
                     mode="sphere",
                 )

@@ -153,16 +153,34 @@ class ControlPanel(QWidget):
         self.point_size_selector.valueChanged.connect(self.on_point_size_changed)
         point_size_layout.addWidget(self.point_size_selector)
 
-        # Eco mode checkbox
+        # Cluster point size layout (size of the highlighted cluster only)
+        cluster_size_layout = QHBoxLayout()
+        self.cluster_point_size_label = QLabel("Cluster Size:", self)
+        cluster_size_layout.addWidget(self.cluster_point_size_label)
+
+        self.cluster_point_size_selector = QDoubleSpinBox(self)
+        self.cluster_point_size_selector.setSingleStep(0.1)
+        self.cluster_point_size_selector.setValue(
+            settings.current_settings["cluster_point_size"]
+        )
+        self.cluster_point_size_selector.valueChanged.connect(
+            self.on_cluster_point_size_changed
+        )
+        cluster_size_layout.addWidget(self.cluster_point_size_selector)
+        cluster_size_layout.addStretch(1)
+
+        # Eco mode checkbox (connect before setChecked so the initial
+        # eco state disables the point-size selectors right away)
         self.eco_mode_checkbox = QCheckBox("Eco Mode", self)
-        self.eco_mode_checkbox.setChecked(settings.current_settings["eco_mode"])
         self.eco_mode_checkbox.toggled.connect(self.toggle_eco_mode)
+        self.eco_mode_checkbox.setChecked(settings.current_settings["eco_mode"])
 
         # Make the layout tight
         point_size_layout.addStretch(1)
 
         # add ps and nm layouts to ps_nm_layout
         ps_nm_layout.addLayout(point_size_layout)
+        ps_nm_layout.addLayout(cluster_size_layout)
         ps_nm_layout.addWidget(self.night_mode_checkbox)
         ps_nm_layout.addWidget(self.eco_mode_checkbox)
 
@@ -567,6 +585,16 @@ class ControlPanel(QWidget):
                 show_cluster_view=self.checkbox_cluster_view.isChecked(),
             )
 
+    def on_cluster_point_size_changed(self, value):
+        settings.current_settings["cluster_point_size"] = value
+        if (
+            self.pointcloud_view.current_folder_path
+        ):  # Check if a point cloud folder is loaded
+            self.pointcloud_view.render_pointcloud(
+                show_full_view=self.checkbox_full_view.isChecked(),
+                show_cluster_view=self.checkbox_cluster_view.isChecked(),
+            )
+
     def on_downsampling_changed(self):
         print("Running function: on_downsampling_changed")
         # Update the settings with the new selection
@@ -684,6 +712,7 @@ class ControlPanel(QWidget):
         is_eco_mode = self.eco_mode_checkbox.isChecked()
         settings.current_settings["eco_mode"] = is_eco_mode
         self.point_size_selector.setEnabled(not is_eco_mode)
+        self.cluster_point_size_selector.setEnabled(not is_eco_mode)
         if self.pointcloud_view.current_folder_path:
             # Refresh the point cloud view with the new eco mode setting
             self.pointcloud_view.render_pointcloud(

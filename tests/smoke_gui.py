@@ -21,7 +21,12 @@ app = QApplication([])
 import numpy as np
 import laspy
 
+import config.settings as settings
 from gui.window import MainWindow
+
+# Tests must never write the repo's app_settings.json (MainWindow.closeEvent
+# saves settings when the window is destroyed at exit).
+settings.save_settings = lambda *a, **k: None
 
 win = MainWindow()
 win.show()
