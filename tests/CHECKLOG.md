@@ -118,6 +118,25 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   the sampled cloud (sampling-dependent; the numpy FPS fallback samples differently than
   the CUDA fpsample did, so cluster structure on a given cloud can differ from before).
   On a uniform synthetic cloud the default pipeline gives ~630 clusters, largest ~11/2048.
+- 2026-11-16 — Stale-cluster-highlight regression (user-reported: navigating clusters
+  left prior clusters' red dots + green arrow stacked in both panes) root-caused to
+  commit 7401c63: `_figure_attached` did `from mayavi.core.engine_manager import
+  engine_manager`, a module that does not exist in mayavi 4.9.0 (it lives at
+  `mayavi.tools.engine_manager`), so the import always raised and the function
+  returned False for every figure. render_pointcloud then nulled both figures each
+  call, skipped `mlab.clf`, and `mlab.figure("Full Model"/"Cluster Zoom")` re-attached
+  to the same named scenes with old children intact, stacking a new red highlight +
+  arrow per render. Fix in pointcloud_view.py: import from `mayavi.tools.engine_manager`
+  with a `mayavi.core.engine_manager` fallback for older mayavi; also pass
+  `figure=self.fig_full` to the centroid `mlab.quiver3d` so the arrow lands in the
+  full pane deterministically instead of on whatever figure `gcf()` points to.
+  Regression test tests/check_stale_highlight.py (fake mlab with name-based figure
+  lookup, gcf/current_scene, children-clearing clf; real `_figure_attached` against a
+  fake engine): fails on pre-fix code (`_figure_attached(live)` is False; red sets
+  stack 1->2->3 across renders), passes after the fix (exactly 1 red set per pane and
+  1 arrow in the full pane after every render, red set covering only the current
+  cluster). All 7 test scripts exit 0, py_compile clean, offscreen `python main.py`
+  launch OK (exit 124).
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

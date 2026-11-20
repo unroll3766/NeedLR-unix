@@ -47,7 +47,11 @@ def _figure_attached(figure) -> bool:
     if figure is None or getattr(figure, "scene", None) is None:
         return False
     try:
-        from mayavi.core.engine_manager import engine_manager
+        try:
+            from mayavi.tools.engine_manager import engine_manager
+        except ImportError:
+            # Older mayavi releases keep this module under mayavi.core.
+            from mayavi.core.engine_manager import engine_manager
 
         engine_manager.find_figure_engine(figure)
         return True
@@ -340,6 +344,7 @@ class PointcloudView:
                         scale_factor=scale_factor,
                         mode="arrow",
                         color=(0, 1, 0),
+                        figure=self.fig_full,
                     )  # Green arrow
 
             if self.full_camera is None and self.fig_full is not None:
