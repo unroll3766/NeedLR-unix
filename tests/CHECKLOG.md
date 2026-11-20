@@ -190,6 +190,33 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   Known limitation, accepted: on the prev/next-file path that loads an existing
   annotation JSON, the dims list keeps the previous file's columns (no
   re-clustering happens on that path, so cluster_dims is unused there).
+- 2026-11-20 — Manual pipeline control implemented and verified: new
+  `manual_pipeline` setting (default false, so existing behavior is unchanged).
+  pointcloud_view.py's load_and_display_pointcloud is refactored into stage
+  methods -- load_file (read only), apply_downsampling (spatial, invalidates
+  graph/clusters), build_graph (on _clustering_matrix(), invalidates clusters),
+  apply_clustering -- and load_and_display_pointcloud composes them, so the auto
+  path is unchanged. controls.py gains a "Pipeline" groupbox with a "Manual
+  Pipeline" checkbox (persisted, connect-before-setChecked) and four buttons
+  (Load File, Downsample, Build Graph, Cluster) enabled only in manual mode;
+  each button runs its stage and re-renders. In manual mode the downsampling/
+  graph/community/dims handlers only store settings, and display_current_file
+  just loads the file + renders (file auto-loads on selection, Load File
+  re-reads). Stage buttons ask before invalidating annotations only when an
+  annotation JSON exists for the current file. Test tests/check_manual_pipeline.py
+  (exit 0): stages run independently with correct invalidation, auto path
+  regression, button enable/disable per mode, manual mode does not auto-run on
+  selector changes, buttons call exactly their stage, display_current_file
+  branches per mode. All 10 test scripts exit 0, py_compile clean, offscreen
+  `python main.py` OK (124), app_settings.json untouched by test runs.
+- 2026-11-20 — Review pass on the manual-pipeline commit: read the full diff;
+  confirmed the stage split preserves the auto path (guard + stages + render),
+  each stage self-guards on empty state (buttons are safe no-ops with no file),
+  and all five manual-mode branches sit in the right handlers
+  (display_current_file, on_cluster_dims_changed, on_downsampling_changed,
+  on_community_detection_changed, create_superpoint_graph). Re-ran all 10
+  scripts from the committed tree (exit 0) + py_compile + offscreen main.py
+  (124); app_settings.json untouched by test runs.
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.

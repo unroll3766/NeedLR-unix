@@ -406,10 +406,8 @@ class PointcloudView:
         clustering_algorithm=None,
     ):
         self.current_file = full_path
-        self.superpoint_graph_method = superpoint_graph_method
-        self.clustering_algorithm = clustering_algorithm
         # print(self.current_file)
-        print("Being ran with clustering algorithm: ", self.clustering_algorithm)
+        print("Being ran with clustering algorithm: ", clustering_algorithm)
         try:
             self.target_count = target_count
             if (
@@ -417,78 +415,105 @@ class PointcloudView:
                 or downsampling_method != self.old_downsampling_method
                 or self.current_file != self.old_file
             ):
-                if self.current_file.endswith((".las", ".laz")):
-                    las = laspy.read(self.current_file)
-                    self._load_las_features(las)
-                elif self.current_file.endswith(".txt"):
-                    self._load_txt_features(self.current_file)
-                # self.points stays the xyz cloud (rendering/labels use 3 cols)
-                self.points = self.features[:, :3].copy()
-
-            # Apply downsampling (spatial, on xyz only); keep the feature
-            # matrix aligned by sampling with the same indices
-            # print("Applying {} downsampling".format(downsampling_method))
-            curr_time = time.time()
-            indices = None
-            if downsampling_method == "random":
-                indices = downsampling.random_downsample(
-                    self.points, target_count, return_indices=True
-                )
-            elif downsampling_method == "vanilla_fps":
-                indices = downsampling.vanilla_fps(
-                    self.points, target_count, return_indices=True
-                )
-            elif downsampling_method == "fps_npdu":
-                indices = downsampling.fps_npdu(
-                    self.points, target_count, return_indices=True
-                )
-            elif downsampling_method == "fps_npdu_kdtree":
-                indices = downsampling.fps_npdu_kdtree(
-                    self.points, target_count, return_indices=True
-                )
-            elif downsampling_method == "bucket_fps_kdline_small":
-                indices = downsampling.bucket_fps_kdline(
-                    self.points, target_count, h=4, return_indices=True
-                )
-            elif downsampling_method == "bucket_fps_kdline_medium":
-                indices = downsampling.bucket_fps_kdline(
-                    self.points, target_count, h=7, return_indices=True
-                )
-            elif downsampling_method == "bucket_fps_kdline_large":
-                indices = downsampling.bucket_fps_kdline(
-                    self.points, target_count, h=9, return_indices=True
-                )
-            if indices is not None:
-                self.points = self.points[indices]
-                if self.features is not None:
-                    self.sampled_features = self.features[indices]
-                else:
-                    self.sampled_features = self.points
-            print("Downsampling took", time.time() - curr_time, "seconds")
-
-            # Perform superpoint graph construction on the selected
-            # clustering dimensions
-            # print(f"Performing {superpoint_graph_method} construction")
-            graph_points = self._clustering_matrix()
-            if superpoint_graph_method == "knn":
-                # Call superpoint graph construction method
-                curr_time = time.time()
-                self.graph = superpoint_graph.create_knn_graph(graph_points, k_value)
-            elif superpoint_graph_method == "mst":
-                # Call superpoint graph construction method
-                curr_time = time.time()
-                self.graph = superpoint_graph.create_mst_graph(graph_points)
-                # print(f"Graph construction took {time.time() - curr_time} seconds")
-
-            # Apply community detection
-            # print("Applying community detection algorithm: ", self.clustering_algorithm)
-            curr_time = time.time()
-            self.apply_community_detection(self.graph)
-            # print("Community detection took", time.time() - curr_time, "seconds")
+                self.load_file(full_path)
+            self.apply_downsampling(downsampling_method, target_count)
+            self.build_graph(superpoint_graph_method, k_value)
+            self.apply_clustering(clustering_algorithm)
             self.render_pointcloud(show_full_view, show_cluster_view)
 
         except Exception as e:
             print(f"Error loading point cloud: {e}")
+
+    def load_file(self, full_path) -> bool:
+        """Read a point cloud file into self.features/self.points (no compute).
+
+        Returns False for unsupported extensions without touching state."""
+        if full_path.endswith((".las", ".laz")):
+            las = laspy.read(full_path)
+            self._load_las_features(las)
+        elif full_path.endswith(".txt"):
+            self._load_txt_features(full_path)
+        else:
+            return False
+        self.current_file = full_path
+        # self.points stays the xyz cloud (rendering/labels use 3 cols)
+        self.points = self.features[:, :3].copy()
+        self.sampled_features = None
+        self.graph = None
+        self.clusters = None
+        return True
+
+    def apply_downsampling(self, downsampling_method, target_count):
+        """Downsample spatially on xyz, keeping features aligned via the same
+        indices. Invalidates any graph/clusters built on the old sample."""
+        if self.points is None:
+            return
+        self.downsampling_method = downsampling_method
+        self.target_count = target_count
+        curr_time = time.time()
+        indices = None
+        if downsampling_method == "random":
+            indices = downsampling.random_downsample(
+                self.points, target_count, return_indices=True
+            )
+        elif downsampling_method == "vanilla_fps":
+            indices = downsampling.vanilla_fps(
+                self.points, target_count, return_indices=True
+            )
+        elif downsampling_method == "fps_npdu":
+            indices = downsampling.fps_npdu(
+                self.points, target_count, return_indices=True
+            )
+        elif downsampling_method == "fps_npdu_kdtree":
+            indices = downsampling.fps_npdu_kdtree(
+                self.points, target_count, return_indices=True
+            )
+        elif downsampling_method == "bucket_fps_kdline_small":
+            indices = downsampling.bucket_fps_kdline(
+                self.points, target_count, h=4, return_indices=True
+            )
+        elif downsampling_method == "bucket_fps_kdline_medium":
+            indices = downsampling.bucket_fps_kdline(
+                self.points, target_count, h=7, return_indices=True
+            )
+        elif downsampling_method == "bucket_fps_kdline_large":
+            indices = downsampling.bucket_fps_kdline(
+                self.points, target_count, h=9, return_indices=True
+            )
+        if indices is not None:
+            self.points = self.points[indices]
+            if self.features is not None:
+                self.sampled_features = self.features[indices]
+            else:
+                self.sampled_features = self.points
+            # downstream results are stale now
+            self.graph = None
+            self.clusters = None
+        print("Downsampling took", time.time() - curr_time, "seconds")
+
+    def build_graph(self, superpoint_graph_method, k_value):
+        """Construct the superpoint graph on the selected clustering dims."""
+        if self.points is None:
+            return
+        self.superpoint_graph_method = superpoint_graph_method
+        graph_points = self._clustering_matrix()
+        curr_time = time.time()
+        if superpoint_graph_method == "knn":
+            self.graph = superpoint_graph.create_knn_graph(graph_points, k_value)
+        elif superpoint_graph_method == "mst":
+            self.graph = superpoint_graph.create_mst_graph(graph_points)
+        else:
+            return
+        self.clusters = None  # clusters from an old graph are stale
+        print("Graph construction took", time.time() - curr_time, "seconds")
+
+    def apply_clustering(self, clustering_algorithm):
+        """Run community detection on the current graph."""
+        self.clustering_algorithm = clustering_algorithm
+        if self.graph is not None:
+            curr_time = time.time()
+            self.apply_community_detection(self.graph)
+            print("Community detection took", time.time() - curr_time, "seconds")
 
     def set_camera_focal_point(self, focal_point, figure, original_camera):
         # using original camera as a reference to set the focal point

@@ -295,6 +295,44 @@ class ControlPanel(QWidget):
         graph_groupbox.setLayout(graph_groupbox_layout)
         layout.addWidget(graph_groupbox)
 
+        """PIPELINE GROUPBOX"""
+        pipeline_groupbox = QGroupBox("Pipeline")
+        pipeline_groupbox_layout = QVBoxLayout()
+
+        # Manual mode: selector changes only store settings; the buttons below
+        # run each pipeline stage explicitly. Connect before setChecked so the
+        # initial state applies to the buttons right away.
+        self.manual_pipeline_checkbox = QCheckBox(
+            "Manual Pipeline (run stages via buttons)", self
+        )
+        self.manual_pipeline_checkbox.toggled.connect(self.toggle_manual_pipeline)
+        self.manual_pipeline_checkbox.setChecked(
+            settings.current_settings["manual_pipeline"]
+        )
+        pipeline_groupbox_layout.addWidget(self.manual_pipeline_checkbox)
+
+        pipeline_buttons_layout = QHBoxLayout()
+        self.btn_load_file = QPushButton("Load File", self)
+        self.btn_load_file.clicked.connect(self.run_load_file)
+        self.btn_downsample = QPushButton("Downsample", self)
+        self.btn_downsample.clicked.connect(self.run_downsampling)
+        self.btn_build_graph = QPushButton("Build Graph", self)
+        self.btn_build_graph.clicked.connect(self.run_build_graph)
+        self.btn_cluster = QPushButton("Cluster", self)
+        self.btn_cluster.clicked.connect(self.run_cluster)
+        for b in (
+            self.btn_load_file,
+            self.btn_downsample,
+            self.btn_build_graph,
+            self.btn_cluster,
+        ):
+            b.setEnabled(settings.current_settings["manual_pipeline"])
+            pipeline_buttons_layout.addWidget(b)
+        pipeline_groupbox_layout.addLayout(pipeline_buttons_layout)
+
+        pipeline_groupbox.setLayout(pipeline_groupbox_layout)
+        layout.addWidget(pipeline_groupbox)
+
         """CLUSTERING AND LABELING GROUPBOX"""
         clustering_groupbox = QGroupBox("Clustering and Labeling")
         clustering_groupbox_layout = QVBoxLayout()
@@ -491,16 +529,28 @@ class ControlPanel(QWidget):
             self.file_name_display.setText(filename)
             full_path = os.path.join(self.pointcloud_view.current_folder_path, filename)
             self.pointcloud_view.current_file = full_path
-            self.pointcloud_view.load_and_display_pointcloud(
-                full_path,
-                downsampling_method=self.downsampling_algorithm_selector.currentData(),
-                target_count=self.target_point_count.value(),
-                show_full_view=self.checkbox_full_view.isChecked(),
-                show_cluster_view=self.checkbox_cluster_view.isChecked(),
-                superpoint_graph_method=self.superpoint_graph_algorithm_selector.currentData(),
-                k_value=self.k_value.value(),
-                clustering_algorithm=self.community_detection_selector.currentData(),
-            )
+            if settings.current_settings["manual_pipeline"]:
+                # Manual mode: selecting a file only loads it (no compute);
+                # the pipeline buttons run the stages.
+                try:
+                    self.pointcloud_view.load_file(full_path)
+                except Exception as e:
+                    print(f"Error loading point cloud: {e}")
+                self.pointcloud_view.render_pointcloud(
+                    show_full_view=self.checkbox_full_view.isChecked(),
+                    show_cluster_view=self.checkbox_cluster_view.isChecked(),
+                )
+            else:
+                self.pointcloud_view.load_and_display_pointcloud(
+                    full_path,
+                    downsampling_method=self.downsampling_algorithm_selector.currentData(),
+                    target_count=self.target_point_count.value(),
+                    show_full_view=self.checkbox_full_view.isChecked(),
+                    show_cluster_view=self.checkbox_cluster_view.isChecked(),
+                    superpoint_graph_method=self.superpoint_graph_algorithm_selector.currentData(),
+                    k_value=self.k_value.value(),
+                    clustering_algorithm=self.community_detection_selector.currentData(),
+                )
         else:
             self.file_name_display.setText("No point cloud files found")
             print("No files to display or folder path is not set.")
@@ -529,6 +579,86 @@ class ControlPanel(QWidget):
             if self.cluster_dims_list.item(i).checkState() == Qt.Checked
         ]
 
+    def toggle_manual_pipeline(self, checked):
+        settings.current_settings["manual_pipeline"] = checked
+        for b in (
+            self.btn_load_file,
+            self.btn_downsample,
+            self.btn_build_graph,
+            self.btn_cluster,
+        ):
+            b.setEnabled(checked)
+
+    def render_current(self):
+        self.pointcloud_view.render_pointcloud(
+            show_full_view=self.checkbox_full_view.isChecked(),
+            show_cluster_view=self.checkbox_cluster_view.isChecked(),
+        )
+
+    def _confirm_stage_rerun(self):
+        """Re-running a pipeline stage invalidates saved annotations; ask only
+        when an annotation file actually exists for the current file."""
+        if not self.dest_folder_path or not self.pointcloud_files:
+            return True
+        filename = self.pointcloud_files[self.current_file_index]
+        label_file_path = os.path.join(
+            self.dest_folder_path, os.path.basename(filename) + ".json"
+        )
+        if not os.path.exists(label_file_path):
+            return True
+        reply = QMessageBox.question(
+            self,
+            "Confirmation",
+            "Re-running this stage invalidates the saved annotation data for this file. Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            os.remove(label_file_path)
+            self.pointcloud_view.cluster_labels = {}
+            self.pointcloud_view.label_map = {}
+            return True
+        return False
+
+    def run_load_file(self):
+        view = self.pointcloud_view
+        if not view.current_file:
+            return
+        try:
+            view.load_file(view.current_file)
+        except Exception as e:
+            print(f"Error loading point cloud: {e}")
+            return
+        self.populate_cluster_dims()
+        self.render_current()
+
+    def run_downsampling(self):
+        if not self._confirm_stage_rerun():
+            return
+        self.pointcloud_view.apply_downsampling(
+            self.downsampling_algorithm_selector.currentData(),
+            self.target_point_count.value(),
+        )
+        self.render_current()
+
+    def run_build_graph(self):
+        if not self._confirm_stage_rerun():
+            return
+        self.pointcloud_view.build_graph(
+            self.superpoint_graph_algorithm_selector.currentData(),
+            self.k_value.value(),
+        )
+        self.render_current()
+
+    def run_cluster(self):
+        if not self._confirm_stage_rerun():
+            return
+        self.pointcloud_view.apply_clustering(
+            self.community_detection_selector.currentData()
+        )
+        self.render_current()
+        self.update_cluster_label()
+
     def on_cluster_dims_changed(self, item):
         selected = self.selected_cluster_dims()
         if not selected:
@@ -539,6 +669,8 @@ class ControlPanel(QWidget):
             return
         settings.current_settings["cluster_dims"] = selected
         self.pointcloud_view.cluster_dims = selected
+        if settings.current_settings["manual_pipeline"]:
+            return  # manual mode: Build Graph/Cluster buttons run the stages
         if self.pointcloud_view.current_folder_path:
             self.show_loading_indicator()
             self.pointcloud_view.load_and_display_pointcloud(
@@ -658,6 +790,8 @@ class ControlPanel(QWidget):
         settings.current_settings["Subsampling"] = current_selection
         current_subsample_size = int(self.target_point_count.value())
         settings.current_settings["Subsample_size"] = current_subsample_size
+        if settings.current_settings["manual_pipeline"]:
+            return  # manual mode: the Downsample button runs this stage
         self.show_loading_indicator()  # This may take a while depending on the size of the point cloud
         if self.confirm_deletion():
             if self.pointcloud_view.current_folder_path:
@@ -684,6 +818,8 @@ class ControlPanel(QWidget):
         # Update the settings with the new selection
         current_selection = self.community_detection_selector.currentData()
         settings.current_settings["Community_detection"] = current_selection
+        if settings.current_settings["manual_pipeline"]:
+            return  # manual mode: the Cluster button runs this stage
         self.show_loading_indicator()  # This may take a while depending on the size of the point cloud
         if self.confirm_deletion():
             if self.pointcloud_view.current_folder_path:
@@ -723,6 +859,8 @@ class ControlPanel(QWidget):
                 print("No files to display changes for")
             return  # allow user to select k value
 
+        if settings.current_settings["manual_pipeline"]:
+            return  # manual mode: the Build Graph button runs this stage
         print("Running function: create_superpoint_graph")
         self.show_loading_indicator()  # This may take a while depending on the size of the point cloud
         if self.confirm_deletion():
