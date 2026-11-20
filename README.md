@@ -34,7 +34,7 @@ Clone the repository and create the conda environment (works on macOS — Intel 
 
 ```bash
 git clone https://github.com/unroll3766/NeedLR-unix.git
-cd NeedLR
+cd NeedLR-unix
 conda env create -f environment.yml
 conda activate NeedLR
 # Optional, only on CUDA-capable machines:
