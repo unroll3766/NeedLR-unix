@@ -220,3 +220,24 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
 - Not verified here: actual on-screen Mayavi/VTK rendering and window positioning on
   macOS/Linux (needs a display; VTK SetPosition/SetSize path is used, win32gui fallback
   remains Windows-only). Worth a manual check on a Mac.
+- 2026-11-20 — Full-model black-pane bug (user-reported: next/prev cluster click blacks
+  the Full Model pane, clicking it stays black, wheel zoom revives it; Cluster Zoom
+  unaffected) root-caused, proven, and fixed. Diagnosis proven by the new
+  tests/check_full_pane_camera.py run against pre-fix code with a real tvtk camera on
+  fake figures: render_pointcloud's tail called zoom_to_cluster(fig_full, 2) on every
+  render and vtkCamera.zoom(2) halves the perspective view_angle (30 -> 15 -> 7.5 ->
+  3.75 -> 1.875 across 4 renders) while the zoom pane stayed at 30; self.full_camera
+  held the LIVE camera, so set_camera_focal_point's restore lines were self-assignments
+  (manually setting view_angle=3.75 then calling it left it at 3.75). The collapsed
+  frustum clips out the whole cloud => black pane; wheel zoom (Dolly toward the focal
+  centroid) revives it. Fix in pointcloud_view.py: new _camera_snapshot() stores
+  parameter copies instead of the live camera; full_camera/zoom_camera are reset in the
+  clf block (previously dead locals), when a stale figure is dropped, and in
+  close_figure, so a fresh snapshot is taken at each draw; the tail now always calls
+  set_camera_focal_point, which restores position/view_angle/view_up/clipping_range
+  from the snapshot and overrides only the focal point when a centroid exists. Test
+  passes after the fix: view angles stable at 30/30 across renders, focal points track
+  the current cluster, full_camera is a snapshot, restore works (3.75 -> 30). Bug
+  predates the port (identical tail in original c61e50f). smoke_gui fake camera gained
+  compute_view_plane_normal to match real cameras. All 11 test scripts exit 0,
+  py_compile clean, offscreen main.py OK (124), app_settings.json untouched.

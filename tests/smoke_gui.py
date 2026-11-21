@@ -195,6 +195,7 @@ def fake_figure(*a, **k):
         view_up=(0, 0, 1),
         clipping_range=(0.0, 1.0),
         zoom=lambda factor: None,
+        compute_view_plane_normal=lambda: None,
     )
     scene = types.SimpleNamespace(
         camera=cam, render=lambda: None, render_window=None, interactor=None

@@ -15,6 +15,7 @@ from PyQt5.QtGui import QGuiApplication
 import time
 import algorithms.community_detection as cd
 import json
+import types
 
 # Anchor colors of the matplotlib "plasma" colormap (sampled at fixed
 # positions). Used to build the label color gradient without importing
@@ -57,6 +58,23 @@ def _figure_attached(figure) -> bool:
         return True
     except Exception:
         return False
+
+
+def _camera_snapshot(camera):
+    """Copy the camera parameters that set_camera_focal_point restores.
+
+    Storing the live camera object made those restore lines self-assignments,
+    so zoom_to_cluster's per-render zoom accumulated and collapsed the full
+    pane's frustum (view_angle halved every render => black pane). Restoring
+    from a snapshot taken at draw time undoes the zoom on every render.
+    """
+    return types.SimpleNamespace(
+        position=camera.position,
+        focal_point=camera.focal_point,
+        view_angle=camera.view_angle,
+        view_up=camera.view_up,
+        clipping_range=camera.clipping_range,
+    )
 
 
 class PointcloudView:
@@ -238,16 +256,20 @@ class PointcloudView:
         # engine; drop such stale figures so they are recreated below.
         if self.fig_full is not None and not _figure_attached(self.fig_full):
             self.fig_full = None
+            self.full_camera = None
         if self.fig_zoom is not None and not _figure_attached(self.fig_zoom):
             self.fig_zoom = None
+            self.zoom_camera = None
 
-        # Clear existing point cloud data from the figures
+        # Clear existing point cloud data from the figures; the camera
+        # snapshots are re-taken below so each render restores the camera
+        # state from draw time instead of accumulating the tail zoom.
         if self.fig_full:
             mlab.clf(self.fig_full)
-            full_camera = None
+            self.full_camera = None
         if self.fig_zoom:
             mlab.clf(self.fig_zoom)
-            zoom_camera = None
+            self.zoom_camera = None
 
         # Rendering before any file loaded (or after a failed load) must not crash
         if self.clusters is None:
@@ -354,7 +376,7 @@ class PointcloudView:
                     )  # Green arrow
 
             if self.full_camera is None and self.fig_full is not None:
-                self.full_camera = self.fig_full.scene.camera
+                self.full_camera = _camera_snapshot(self.fig_full.scene.camera)
 
         # Highlight the current cluster in red
         if self.fig_zoom:
@@ -376,15 +398,14 @@ class PointcloudView:
                     mode="sphere",
                 )
                 if self.zoom_camera is None:
-                    self.zoom_camera = self.fig_zoom.scene.camera
+                    self.zoom_camera = _camera_snapshot(self.fig_zoom.scene.camera)
 
                 # Set the camera's focal point to the centroid of the cluster
                 # only do this one time per file
                 self.set_camera_focal_point(centroid, self.fig_zoom, self.zoom_camera)
 
         self.zoom_to_cluster(self.fig_full, 2)
-        if centroid is not None:
-            self.set_camera_focal_point(centroid, self.fig_full, self.full_camera)
+        self.set_camera_focal_point(centroid, self.fig_full, self.full_camera)
 
         # Move the windows after rendering
         if show_full_view:
@@ -516,11 +537,19 @@ class PointcloudView:
             print("Community detection took", time.time() - curr_time, "seconds")
 
     def set_camera_focal_point(self, focal_point, figure, original_camera):
-        # using original camera as a reference to set the focal point
-        if figure is not None and figure.scene is not None:
+        # using the original camera snapshot as a reference to set the focal
+        # point; all other parameters are restored from the snapshot so the
+        # per-render zoom_to_cluster call does not accumulate
+        if (
+            figure is not None
+            and figure.scene is not None
+            and original_camera is not None
+        ):
             camera = figure.scene.camera
             camera.position = original_camera.position
-            camera.focal_point = focal_point
+            camera.focal_point = (
+                focal_point if focal_point is not None else original_camera.focal_point
+            )
             camera.view_angle = original_camera.view_angle
             camera.view_up = original_camera.view_up
             camera.clipping_range = original_camera.clipping_range
@@ -625,6 +654,10 @@ class PointcloudView:
             except Exception:
                 pass
         setattr(self, attr, None)
+        if attr == "fig_full":
+            self.full_camera = None
+        elif attr == "fig_zoom":
+            self.zoom_camera = None
 
     def move_window_to_position(self, title, x, y, width, height):
         # Window titles are set when the figures are created; map them back
