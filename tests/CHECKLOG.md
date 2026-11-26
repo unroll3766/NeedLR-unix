@@ -260,3 +260,13 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   (default 1.0, clamped >= 0; weight 0 mutes a column). Rendering/label export stay
   xyz-only. All 12 test scripts exit 0, py_compile clean, offscreen main.py OK (124),
   app_settings.json untouched by test runs.
+- 2026-11-20 — User-reported UI bug in the dims list fixed: setItemWidget(spinbox)
+  made the row widget cover the item text, so rows showed only a checkbox and the
+  spinbox with no dimension name. Each row is now a container widget holding a
+  QCheckBox whose label IS the dimension name, plus the weight spinbox; the item's
+  check state stays the data model (selected_cluster_dims unchanged), synced both
+  ways (cb.toggled -> item.setCheckState; itemChanged -> _sync_dim_row), and the
+  min-1 revert re-syncs the row checkbox. Test updated in check_dim_weights_labels.py:
+  asserts each row's checkbox text equals the item text and checked state matches,
+  checkbox clicks drive selection, revert re-checks the row. All 12 test scripts
+  exit 0, py_compile clean, offscreen main.py OK (124).

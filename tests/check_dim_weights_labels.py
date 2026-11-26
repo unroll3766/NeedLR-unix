@@ -20,7 +20,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir("/tmp")
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QCheckBox, QDoubleSpinBox
 from PyQt5.QtCore import Qt
 
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -122,16 +122,36 @@ checked = [
 ]
 assert checked == ["x", "y", "z"], checked  # saved X/Y/Z mapped onto x/y/z
 assert view3.cluster_dims == ["x", "y", "z"]
-spins = [
+rows = [
     c.cluster_dims_list.itemWidget(c.cluster_dims_list.item(i))
     for i in range(c.cluster_dims_list.count())
 ]
-assert all(s is not None for s in spins), "every row must have a weight spinbox"
+spins = [r.findChild(QDoubleSpinBox) for r in rows]
+cbs = [r.findChild(QCheckBox) for r in rows]
+assert all(r is not None and s is not None and cb is not None for r, s, cb in zip(rows, spins, cbs)), (
+    "every row must be a widget with a name checkbox and a weight spinbox"
+)
+# the item widget covers the item text, so the row checkbox must show the name
+for i in range(c.cluster_dims_list.count()):
+    item = c.cluster_dims_list.item(i)
+    assert cbs[i].text() == item.text(), f"row {i}: name label missing ({cbs[i].text()!r} != {item.text()!r})"
+    assert cbs[i].isChecked() == (item.checkState() == Qt.Checked)
 vals = [s.value() for s in spins]
 assert vals == [1.0, 1.0, 1.0, 1.0, 2.5], vals  # default 1.0, saved 2.5 applied
 assert all(s.minimum() == 0.0 for s in spins), "weights clamped at 0"
 assert view3.cluster_dim_weights == {"reflectance": 2.5}
-print("dims UI OK: spinbox per row, defaults 1.0, saved weight applied, min 0")
+print("dims UI OK: name visible per row (checkbox label), spinbox per row, defaults 1.0, saved weight applied, min 0")
+
+# clicking the row checkbox toggles the item check state (min-1 still enforced)
+cbs[0].setChecked(False)
+assert c.selected_cluster_dims() == ["y", "z"], c.selected_cluster_dims()
+c.cluster_dims_list.item(1).setCheckState(Qt.Unchecked)
+c.cluster_dims_list.item(2).setCheckState(Qt.Unchecked)
+# last one reverted, and the row checkbox re-syncs
+assert c.selected_cluster_dims() == ["z"]
+assert cbs[2].isChecked(), "reverted row must re-check its checkbox"
+settings.current_settings["cluster_dims"] = ["x", "y", "z"]
+print("dims UI OK: row checkbox drives selection, min-1 revert re-syncs the row")
 
 # changing a weight persists it and reloads the pipeline (auto mode)
 view3.current_folder_path = "/tmp"

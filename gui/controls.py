@@ -291,6 +291,7 @@ class ControlPanel(QWidget):
         self.cluster_dims_list = QListWidget(self)
         self.cluster_dims_list.setMaximumHeight(120)
         self.cluster_dims_list.itemChanged.connect(self.on_cluster_dims_changed)
+        self.cluster_dims_list.itemChanged.connect(self._sync_dim_row)
         graph_groupbox_layout.addWidget(self.cluster_dims_list)
         graph_groupbox.setLayout(graph_groupbox_layout)
         layout.addWidget(graph_groupbox)
@@ -579,7 +580,14 @@ class ControlPanel(QWidget):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if n in selected else Qt.Unchecked)
             self.cluster_dims_list.addItem(item)
-            spin = QDoubleSpinBox(self.cluster_dims_list)
+            # The item widget covers the item's own text, so the row widget
+            # carries the dimension name itself (as the checkbox label).
+            row = QWidget(self.cluster_dims_list)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(4, 0, 4, 0)
+            cb = QCheckBox(n, row)
+            cb.setChecked(item.checkState() == Qt.Checked)
+            spin = QDoubleSpinBox(row)
             spin.setRange(0.0, 1000.0)  # weights are clamped at 0, no negatives
             spin.setSingleStep(0.1)
             spin.setDecimals(2)
@@ -589,7 +597,15 @@ class ControlPanel(QWidget):
             spin.valueChanged.connect(
                 lambda value, name=n: self.on_cluster_dim_weight_changed(name, value)
             )
-            self.cluster_dims_list.setItemWidget(item, spin)
+            cb.toggled.connect(
+                lambda checked, it=item: it.setCheckState(
+                    Qt.Checked if checked else Qt.Unchecked
+                )
+            )
+            row_layout.addWidget(cb)
+            row_layout.addStretch(1)
+            row_layout.addWidget(spin)
+            self.cluster_dims_list.setItemWidget(item, row)
         self.cluster_dims_list.blockSignals(False)
         self.pointcloud_view.cluster_dims = self.selected_cluster_dims()
         self.pointcloud_view.cluster_dim_weights = dict(weights)
@@ -600,6 +616,16 @@ class ControlPanel(QWidget):
             for i in range(self.cluster_dims_list.count())
             if self.cluster_dims_list.item(i).checkState() == Qt.Checked
         ]
+
+    def _sync_dim_row(self, item):
+        """Reflect an item's check state in its row widget's QCheckBox
+        (signals blocked, so this never re-triggers itemChanged)."""
+        row = self.cluster_dims_list.itemWidget(item)
+        cb = row.findChild(QCheckBox) if row is not None else None
+        if cb is not None:
+            cb.blockSignals(True)
+            cb.setChecked(item.checkState() == Qt.Checked)
+            cb.blockSignals(False)
 
     def toggle_manual_pipeline(self, checked):
         settings.current_settings["manual_pipeline"] = checked
@@ -714,6 +740,7 @@ class ControlPanel(QWidget):
             self.cluster_dims_list.blockSignals(True)
             item.setCheckState(Qt.Checked)
             self.cluster_dims_list.blockSignals(False)
+            self._sync_dim_row(item)
             return
         settings.current_settings["cluster_dims"] = selected
         self.pointcloud_view.cluster_dims = selected
