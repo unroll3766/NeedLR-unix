@@ -283,3 +283,14 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   QListWidget/QListWidgetItem imports removed. Tests updated (check_cluster_dims.py,
   check_manual_pipeline.py, check_dim_weights_labels.py) to drive cluster_dim_rows.
   All 12 test scripts exit 0, py_compile clean, offscreen main.py OK (124).
+- 2026-11-20 — Startup crash with persisted manual_pipeline=true fixed
+  (user-reported: AttributeError "ControlPanel" object has no attribute
+  "btn_load_file"). Root cause: in initUI the Manual Pipeline checkbox was
+  connected and setChecked BEFORE the four stage buttons were created, so with
+  manual_pipeline=true in app_settings.json the toggled handler ran while the
+  buttons did not exist yet (repo default false hid it locally). Fix: buttons
+  are now created first; toggled.connect + setChecked happen last. Regression
+  test in check_manual_pipeline.py constructs a MainWindow with
+  manual_pipeline=true and asserts the buttons exist and are enabled; verified
+  it fails with the exact AttributeError on the pre-fix ordering. All 12 test
+  scripts exit 0, py_compile clean, offscreen main.py OK (124).

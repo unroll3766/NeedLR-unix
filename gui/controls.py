@@ -308,14 +308,12 @@ class ControlPanel(QWidget):
         pipeline_groupbox_layout = QVBoxLayout()
 
         # Manual mode: selector changes only store settings; the buttons below
-        # run each pipeline stage explicitly. Connect before setChecked so the
-        # initial state applies to the buttons right away.
+        # run each pipeline stage explicitly. The buttons are created BEFORE
+        # the checkbox is connected and checked: setChecked fires toggled, and
+        # toggle_manual_pipeline references the buttons -- with a persisted
+        # manual_pipeline=true this must not raise AttributeError at startup.
         self.manual_pipeline_checkbox = QCheckBox(
             "Manual Pipeline (run stages via buttons)", self
-        )
-        self.manual_pipeline_checkbox.toggled.connect(self.toggle_manual_pipeline)
-        self.manual_pipeline_checkbox.setChecked(
-            settings.current_settings["manual_pipeline"]
         )
         pipeline_groupbox_layout.addWidget(self.manual_pipeline_checkbox)
 
@@ -337,6 +335,11 @@ class ControlPanel(QWidget):
             b.setEnabled(settings.current_settings["manual_pipeline"])
             pipeline_buttons_layout.addWidget(b)
         pipeline_groupbox_layout.addLayout(pipeline_buttons_layout)
+
+        self.manual_pipeline_checkbox.toggled.connect(self.toggle_manual_pipeline)
+        self.manual_pipeline_checkbox.setChecked(
+            settings.current_settings["manual_pipeline"]
+        )
 
         pipeline_groupbox.setLayout(pipeline_groupbox_layout)
         layout.addWidget(pipeline_groupbox)

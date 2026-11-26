@@ -162,4 +162,20 @@ try:
 finally:
     view.load_and_display_pointcloud = orig_load
 
+# --- Regression: startup with manual_pipeline=true must not crash ------------
+# setChecked during initUI fires toggle_manual_pipeline, which references the
+# stage buttons -- they must exist by then (AttributeError otherwise).
+settings.current_settings["manual_pipeline"] = True
+win2 = MainWindow()
+win2.show()
+app.processEvents()
+c2 = win2.controls
+assert c2.manual_pipeline_checkbox.isChecked()
+assert all(
+    b.isEnabled()
+    for b in (c2.btn_load_file, c2.btn_downsample, c2.btn_build_graph, c2.btn_cluster)
+)
+print("startup OK: manual_pipeline=true at construction, buttons exist and enabled")
+settings.current_settings["manual_pipeline"] = False
+
 print("MANUAL PIPELINE: ALL PASSED")
