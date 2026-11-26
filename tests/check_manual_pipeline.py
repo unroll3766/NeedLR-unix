@@ -101,7 +101,7 @@ try:
     assert recorded == [], f"manual mode must not auto-run the pipeline: {recorded}"
     view.feature_names = ["x", "y", "z", "col3", "col4"]
     c.populate_cluster_dims()
-    c.cluster_dims_list.item(4).setCheckState(Qt.Checked)
+    c.cluster_dim_rows["col4"]["checkbox"].setChecked(True)
     assert recorded == [] and view.cluster_dims == ["x", "y", "z", "col4"]
     print("manual mode OK: selector/dims changes do not run the pipeline, settings updated")
 

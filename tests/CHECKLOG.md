@@ -270,3 +270,16 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   asserts each row's checkbox text equals the item text and checked state matches,
   checkbox clicks drive selection, revert re-checks the row. All 12 test scripts
   exit 0, py_compile clean, offscreen main.py OK (124).
+- 2026-11-20 — Dims-list layout reworked (user-reported: duplicate checkbox with the
+  left one dead, row checkbox overlapping the name, spinbox under the scrollbar, big
+  gap before the spinbox). The QListWidget + setItemWidget approach was the root cause
+  (delegate-drawn check indicator plus a full-width row widget). Replaced with a
+  QScrollArea (max height 120, widgetResizable) holding a QVBoxLayout of plain row
+  widgets: one QCheckBox labeled with the dimension name immediately followed by a
+  fixed-width (80) weight spinbox -- no stretch, no delegate artifacts, scrollbar
+  handled by the scroll area. Item check state is gone; selection is read from the row
+  checkboxes (cluster_dim_rows dict), toggles go through on_cluster_dim_toggled (min-1
+  revert re-checks the box), weights unchanged (on_cluster_dim_weight_changed).
+  QListWidget/QListWidgetItem imports removed. Tests updated (check_cluster_dims.py,
+  check_manual_pipeline.py, check_dim_weights_labels.py) to drive cluster_dim_rows.
+  All 12 test scripts exit 0, py_compile clean, offscreen main.py OK (124).

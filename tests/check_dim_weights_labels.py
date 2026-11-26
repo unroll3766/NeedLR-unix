@@ -20,7 +20,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir("/tmp")
 
-from PyQt5.QtWidgets import QApplication, QCheckBox, QDoubleSpinBox
+from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -114,44 +114,29 @@ view3.feature_names = ["x", "y", "z", "intensity", "reflectance"]
 settings.current_settings["cluster_dims"] = ["X", "Y", "Z"]  # case-insensitive save
 settings.current_settings["cluster_dim_weights"] = {"reflectance": 2.5}
 c.populate_cluster_dims()
-assert c.cluster_dims_list.count() == 5
-checked = [
-    c.cluster_dims_list.item(i).text()
-    for i in range(c.cluster_dims_list.count())
-    if c.cluster_dims_list.item(i).checkState() == Qt.Checked
-]
+assert list(c.cluster_dim_rows) == ["x", "y", "z", "intensity", "reflectance"]
+checked = [n for n, row in c.cluster_dim_rows.items() if row["checkbox"].isChecked()]
 assert checked == ["x", "y", "z"], checked  # saved X/Y/Z mapped onto x/y/z
 assert view3.cluster_dims == ["x", "y", "z"]
-rows = [
-    c.cluster_dims_list.itemWidget(c.cluster_dims_list.item(i))
-    for i in range(c.cluster_dims_list.count())
-]
-spins = [r.findChild(QDoubleSpinBox) for r in rows]
-cbs = [r.findChild(QCheckBox) for r in rows]
-assert all(r is not None and s is not None and cb is not None for r, s, cb in zip(rows, spins, cbs)), (
-    "every row must be a widget with a name checkbox and a weight spinbox"
-)
-# the item widget covers the item text, so the row checkbox must show the name
-for i in range(c.cluster_dims_list.count()):
-    item = c.cluster_dims_list.item(i)
-    assert cbs[i].text() == item.text(), f"row {i}: name label missing ({cbs[i].text()!r} != {item.text()!r})"
-    assert cbs[i].isChecked() == (item.checkState() == Qt.Checked)
-vals = [s.value() for s in spins]
+# each row is one checkbox labeled with the dim name plus a weight spinbox
+for n, row in c.cluster_dim_rows.items():
+    assert row["checkbox"].text() == n, f"row {n!r}: name label missing"
+    assert row["spin"] is not None
+vals = [row["spin"].value() for row in c.cluster_dim_rows.values()]
 assert vals == [1.0, 1.0, 1.0, 1.0, 2.5], vals  # default 1.0, saved 2.5 applied
-assert all(s.minimum() == 0.0 for s in spins), "weights clamped at 0"
+assert all(row["spin"].minimum() == 0.0 for row in c.cluster_dim_rows.values()), "weights clamped at 0"
 assert view3.cluster_dim_weights == {"reflectance": 2.5}
-print("dims UI OK: name visible per row (checkbox label), spinbox per row, defaults 1.0, saved weight applied, min 0")
+print("dims UI OK: name on each row (checkbox label), spinbox per row, defaults 1.0, saved weight applied, min 0")
 
-# clicking the row checkbox toggles the item check state (min-1 still enforced)
-cbs[0].setChecked(False)
+# the row checkbox drives selection (min-1 still enforced, revert re-checks)
+c.cluster_dim_rows["x"]["checkbox"].setChecked(False)
 assert c.selected_cluster_dims() == ["y", "z"], c.selected_cluster_dims()
-c.cluster_dims_list.item(1).setCheckState(Qt.Unchecked)
-c.cluster_dims_list.item(2).setCheckState(Qt.Unchecked)
-# last one reverted, and the row checkbox re-syncs
+c.cluster_dim_rows["y"]["checkbox"].setChecked(False)
+c.cluster_dim_rows["z"]["checkbox"].setChecked(False)
 assert c.selected_cluster_dims() == ["z"]
-assert cbs[2].isChecked(), "reverted row must re-check its checkbox"
+assert c.cluster_dim_rows["z"]["checkbox"].isChecked(), "reverted row must re-check its checkbox"
 settings.current_settings["cluster_dims"] = ["x", "y", "z"]
-print("dims UI OK: row checkbox drives selection, min-1 revert re-syncs the row")
+print("dims UI OK: row checkbox drives selection, min-1 revert re-checks the row")
 
 # changing a weight persists it and reloads the pipeline (auto mode)
 view3.current_folder_path = "/tmp"
@@ -160,14 +145,14 @@ orig_load = view3.load_and_display_pointcloud
 view3.load_and_display_pointcloud = lambda *a, **k: recorded.append((a, k))
 try:
     settings.current_settings["manual_pipeline"] = False
-    spins[0].setValue(4.0)  # weight of x
+    c.cluster_dim_rows["x"]["spin"].setValue(4.0)  # weight of x
     assert settings.current_settings["cluster_dim_weights"]["x"] == 4.0
     assert view3.cluster_dim_weights["x"] == 4.0
     assert recorded, "weight change must reload the pipeline in auto mode"
     # manual mode: persist only, no reload
     recorded.clear()
     settings.current_settings["manual_pipeline"] = True
-    spins[1].setValue(0.0)
+    c.cluster_dim_rows["y"]["spin"].setValue(0.0)
     assert settings.current_settings["cluster_dim_weights"]["y"] == 0.0
     assert not recorded, "manual mode must not auto-run the pipeline"
 finally:

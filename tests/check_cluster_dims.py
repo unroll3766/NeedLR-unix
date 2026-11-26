@@ -196,19 +196,15 @@ view3 = c.pointcloud_view
 view3.feature_names = ["x", "y", "z", "intensity", "reflectance"]
 settings.current_settings["cluster_dims"] = ["x", "y", "z"]
 c.populate_cluster_dims()
-assert c.cluster_dims_list.count() == 5
-checked = [
-    c.cluster_dims_list.item(i).text()
-    for i in range(5)
-    if c.cluster_dims_list.item(i).checkState() == Qt.Checked
-]
+assert list(c.cluster_dim_rows) == ["x", "y", "z", "intensity", "reflectance"]
+checked = [n for n, row in c.cluster_dim_rows.items() if row["checkbox"].isChecked()]
 assert checked == ["x", "y", "z"], checked
 assert view3.cluster_dims == ["x", "y", "z"]
-print("dims UI OK: list populated from file columns, saved selection applied")
+print("dims UI OK: rows populated from file columns, saved selection applied")
 
 # unchecking everything is not allowed: the last toggle is reverted
-for i in range(3):  # uncheck x, y, z one by one
-    c.cluster_dims_list.item(i).setCheckState(Qt.Unchecked)
+for n in ("x", "y", "z"):  # uncheck one by one
+    c.cluster_dim_rows[n]["checkbox"].setChecked(False)
 assert c.selected_cluster_dims() == ["z"], c.selected_cluster_dims()
 assert settings.current_settings["cluster_dims"] == ["z"]
 print("dims UI OK: empty selection reverted (min 1 enforced), settings updated")
@@ -219,7 +215,7 @@ recorded = []
 orig_load = view3.load_and_display_pointcloud
 view3.load_and_display_pointcloud = lambda *a, **k: recorded.append((a, k))
 try:
-    c.cluster_dims_list.item(3).setCheckState(Qt.Checked)  # add "intensity"
+    c.cluster_dim_rows["intensity"]["checkbox"].setChecked(True)  # add "intensity"
     assert recorded, "changing clustering dims must trigger a reload"
     assert view3.cluster_dims == ["z", "intensity"], view3.cluster_dims
 finally:
