@@ -3,6 +3,7 @@
     "point_size": 0.2,
     "cluster_point_size": 0.2,
     "cluster_dims": ["x", "y", "z"],
+    "cluster_dim_weights": {},
     "manual_pipeline": false,
     "show_full_view": true,
     "show_cluster_view": false,

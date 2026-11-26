@@ -100,6 +100,9 @@ class PointcloudView:
         self.cluster_dims = list(
             settings.current_settings.get("cluster_dims", ["x", "y", "z"])
         )
+        self.cluster_dim_weights = dict(
+            settings.current_settings.get("cluster_dim_weights", {})
+        )
         self.current_file = None
         self.old_file = None
         self.graph = None
@@ -589,8 +592,11 @@ class PointcloudView:
     def _load_las_features(self, las):
         """Build the full per-point feature matrix from a laspy LasData:
         all point-format dimensions (standard + extra), x/y/z first."""
+        # LAS formats carry both the float coords (x, y, z) and the raw
+        # scaled ints (X, Y, Z); the latter are the same coordinates, so only
+        # the lowercase triple is kept as features.
         rest = [
-            n for n in las.point_format.dimension_names if n not in ("x", "y", "z")
+            n for n in las.point_format.dimension_names if n.lower() not in ("x", "y", "z")
         ]
         names = ["x", "y", "z"] + list(rest)
         cols = [np.asarray(getattr(las, n), dtype=float) for n in names]
@@ -614,23 +620,31 @@ class PointcloudView:
 
     def _clustering_matrix(self):
         """Feature matrix used for graph/cluster distances: the sampled
-        points restricted to the selected cluster_dims columns.
+        points restricted to the selected cluster_dims columns, each column
+        scaled by its cluster_dim_weights entry (default 1.0, clamped >= 0).
 
-        Falls back to xyz when no features were loaded or none of the
-        selected names exist in the current file (at least one column is
-        always returned)."""
+        Dimension names are matched case-insensitively (older settings files
+        may contain the raw LAS "X", "Y", "Z"). Falls back to unweighted xyz
+        when no features were loaded or none of the selected names exist in
+        the current file (at least one column is always returned)."""
         base = self.sampled_features if self.sampled_features is not None else self.points
         if base is None:
             return None
         names = self.feature_names if self.feature_names else ["x", "y", "z"]
-        idx = [
-            names.index(d)
-            for d in self.cluster_dims
-            if d in names and names.index(d) < base.shape[1]
-        ]
+        lower = {n.lower(): i for i, n in enumerate(names)}
+        idx, weights = [], []
+        for d in self.cluster_dims:
+            i = names.index(d) if d in names else lower.get(str(d).lower())
+            if i is not None and i < base.shape[1]:
+                idx.append(i)
+                w = self.cluster_dim_weights.get(
+                    names[i], self.cluster_dim_weights.get(d, 1.0)
+                )
+                weights.append(max(0.0, float(w)))
         if not idx:
             idx = list(range(min(3, base.shape[1])))
-        return base[:, idx]
+            weights = [1.0] * len(idx)
+        return base[:, idx] * np.asarray(weights, dtype=float)
 
     def set_point_size(self, size):
         settings.current_settings["point_size"] = size

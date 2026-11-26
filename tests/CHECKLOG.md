@@ -241,3 +241,22 @@ new `environment.yml` on linux-64. No display server on this machine; GUI checks
   predates the port (identical tail in original c61e50f). smoke_gui fake camera gained
   compute_view_plane_normal to match real cameras. All 11 test scripts exit 0,
   py_compile clean, offscreen main.py OK (124), app_settings.json untouched.
+- 2026-11-20 — Three user-requested QOL changes implemented and verified
+  (tests/check_dim_weights_labels.py, exit 0): (1) LAS feature names no longer
+  duplicate the coordinate triple -- laspy exposes raw scaled ints as X/Y/Z in
+  point_format.dimension_names, so _load_las_features now filters case-insensitively
+  and keeps only the float x/y/z first; saved dim selections are also resolved
+  case-insensitively (old "X","Y","Z" in app_settings.json maps to x/y/z) in both
+  populate_cluster_dims and _clustering_matrix. (2) update_cluster_label now
+  populates label_entry_textbox with the current cluster's saved label (or clears it
+  when unlabeled, incl. no-clusters state), so prev/next buttons and the auto-advance
+  after Enter show the code for easy reference; save_label_and_next no longer clears
+  the box afterwards (the callback repopulates it with the next cluster's label).
+  (3) Per-dimension clustering weights: new cluster_dim_weights setting ({} default,
+  added to app_settings.json); each row of the dims list gets a QDoubleSpinBox
+  (range [0, 1000], step 0.1, default 1.0) whose changes persist and re-run the
+  pipeline via the shared _rerun_pipeline helper (auto mode reloads, manual mode
+  stores only); _clustering_matrix scales each selected column by its weight
+  (default 1.0, clamped >= 0; weight 0 mutes a column). Rendering/label export stay
+  xyz-only. All 12 test scripts exit 0, py_compile clean, offscreen main.py OK (124),
+  app_settings.json untouched by test runs.

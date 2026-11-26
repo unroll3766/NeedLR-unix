@@ -493,9 +493,9 @@ class ControlPanel(QWidget):
         label = self.label_entry_textbox.text().strip()
         if label:
             self.pointcloud_view.label_current_cluster(label)
+            # next_cluster -> update_cluster_label repopulates the entry box
+            # with the newly current cluster's label (or clears it)
             self.pointcloud_view.next_cluster()
-            self.label_entry_textbox.clear()
-            # Update UI elements as needed
 
             # Save the current state of labels to a file
             self.pointcloud_view.save_labels_to_file()
@@ -558,10 +558,20 @@ class ControlPanel(QWidget):
 
     def populate_cluster_dims(self):
         """Fill the clustering-dimensions list from the loaded file's columns,
-        applying the persisted cluster_dims selection (default x, y, z)."""
+        applying the persisted cluster_dims selection (default x, y, z) and
+        per-dimension weights (default 1.0). Dim names are matched
+        case-insensitively so saved "X", "Y", "Z" map onto x, y, z."""
         names = self.pointcloud_view.feature_names or ["x", "y", "z"]
         saved = settings.current_settings.get("cluster_dims", ["x", "y", "z"])
-        selected = [n for n in saved if n in names] or ["x", "y", "z"]
+        lower = {n.lower(): n for n in names}
+        selected = []
+        for d in saved:
+            canon = d if d in names else lower.get(str(d).lower())
+            if canon is not None and canon not in selected:
+                selected.append(canon)
+        if not selected:
+            selected = [n for n in ("x", "y", "z") if n in names] or names[:3]
+        weights = settings.current_settings.get("cluster_dim_weights", {})
         self.cluster_dims_list.blockSignals(True)
         self.cluster_dims_list.clear()
         for n in names:
@@ -569,8 +579,20 @@ class ControlPanel(QWidget):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked if n in selected else Qt.Unchecked)
             self.cluster_dims_list.addItem(item)
+            spin = QDoubleSpinBox(self.cluster_dims_list)
+            spin.setRange(0.0, 1000.0)  # weights are clamped at 0, no negatives
+            spin.setSingleStep(0.1)
+            spin.setDecimals(2)
+            spin.blockSignals(True)
+            spin.setValue(max(0.0, float(weights.get(n, 1.0))))
+            spin.blockSignals(False)
+            spin.valueChanged.connect(
+                lambda value, name=n: self.on_cluster_dim_weight_changed(name, value)
+            )
+            self.cluster_dims_list.setItemWidget(item, spin)
         self.cluster_dims_list.blockSignals(False)
         self.pointcloud_view.cluster_dims = self.selected_cluster_dims()
+        self.pointcloud_view.cluster_dim_weights = dict(weights)
 
     def selected_cluster_dims(self):
         return [
@@ -659,18 +681,11 @@ class ControlPanel(QWidget):
         self.render_current()
         self.update_cluster_label()
 
-    def on_cluster_dims_changed(self, item):
-        selected = self.selected_cluster_dims()
-        if not selected:
-            # At least one dimension must stay selected: revert this toggle
-            self.cluster_dims_list.blockSignals(True)
-            item.setCheckState(Qt.Checked)
-            self.cluster_dims_list.blockSignals(False)
-            return
-        settings.current_settings["cluster_dims"] = selected
-        self.pointcloud_view.cluster_dims = selected
+    def _rerun_pipeline(self):
+        """Re-run the pipeline on the current file with the current selector
+        settings. No-op in manual mode (the stage buttons run the stages)."""
         if settings.current_settings["manual_pipeline"]:
-            return  # manual mode: Build Graph/Cluster buttons run the stages
+            return
         if self.pointcloud_view.current_folder_path:
             self.show_loading_indicator()
             self.pointcloud_view.load_and_display_pointcloud(
@@ -683,6 +698,26 @@ class ControlPanel(QWidget):
                 k_value=self.k_value.value(),
                 clustering_algorithm=self.community_detection_selector.currentData(),
             )
+
+    def on_cluster_dim_weight_changed(self, name, value):
+        weight = max(0.0, float(value))  # clamp at 0: no negative weights
+        weights = dict(settings.current_settings.get("cluster_dim_weights", {}))
+        weights[name] = weight
+        settings.current_settings["cluster_dim_weights"] = weights
+        self.pointcloud_view.cluster_dim_weights = weights
+        self._rerun_pipeline()
+
+    def on_cluster_dims_changed(self, item):
+        selected = self.selected_cluster_dims()
+        if not selected:
+            # At least one dimension must stay selected: revert this toggle
+            self.cluster_dims_list.blockSignals(True)
+            item.setCheckState(Qt.Checked)
+            self.cluster_dims_list.blockSignals(False)
+            return
+        settings.current_settings["cluster_dims"] = selected
+        self.pointcloud_view.cluster_dims = selected
+        self._rerun_pipeline()
 
     def show_loading_indicator(self):
         self.file_name_display.setText("Loading...")
@@ -943,8 +978,18 @@ class ControlPanel(QWidget):
                 self.pointcloud_view.current_cluster_index + 1
             )  # +1 for human-readable indexing
             self.cluster_label.setText(f"Cluster {current_index} of {total_clusters}")
+            # Show the current cluster's saved label in the entry box (for
+            # easy reference when revisiting a coded cluster); clear it when
+            # the cluster is unlabeled.
+            label = self.pointcloud_view.cluster_labels.get(
+                self.pointcloud_view.current_cluster_index, -1
+            )
+            self.label_entry_textbox.setText(
+                "" if label is None or str(label) == "-1" else str(label)
+            )
         else:
             self.cluster_label.setText("No clusters")
+            self.label_entry_textbox.clear()
 
     def confirm_deletion(self):
         # Check if there is an active file, if not return False

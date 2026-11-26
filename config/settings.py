@@ -13,6 +13,7 @@ default_settings = {
     "point_size": 1.0,  # Point size of the background (non-highlighted) points
     "cluster_point_size": 1.0,  # Point size of the highlighted cluster
     "cluster_dims": ["x", "y", "z"],  # Point-cloud columns used for clustering distance
+    "cluster_dim_weights": {},  # Per-dimension weights for clustering distance (default 1.0)
     "manual_pipeline": False,  # True: user runs each pipeline stage via buttons
     "show_full_view": True,
     "show_cluster_view": True,
